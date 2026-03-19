@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1773827406436,
+    "tarih": "",
+    "fisno": "5792",
+    "aciklama": "Kosko GmbH",
+    "tutar": 10,
+    "currency": "EUR",
+    "kategori": "seyahat",
+    "otel": "Genel",
+    "not": null,
+    "hasReceipt": true,
+    "receiptPath": "/Users/ilhanyalcin/Desktop/WEB PROJEKT/TripINconnect/Veri_depolama/receipts/receipt_1773827406436_1773827406445.png",
+    "workspace_id": "workspace_1",
+    "created_by": "ilhan.yalcin",
+    "role": "admin",
+    "createdAt": "2026-03-18T09:50:06.436Z"
+  }
+]

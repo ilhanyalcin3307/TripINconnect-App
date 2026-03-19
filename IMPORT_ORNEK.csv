@@ -1,0 +1,6 @@
+Tarih,Fiş No,Açıklama,Tutar,Para Birimi,Kategori,Otel,Not
+2024-03-01,INV-001,REWE Supermarkt,45.50,EUR,seyahat,Hotel A,Günlük market alışverişi
+2024-03-02,INV-002,Uber Berlin,28.90,EUR,ulasim,Hotel A,Havaalanı transferi
+2024-03-03,INV-003,Restaurant Ludwig,85.00,EUR,yemek,Hotel B,Akşam yemeği
+2024-03-04,INV-004,Hotel Maritim,450.00,EUR,konaklama,Hotel Maritim,3 gece konaklama
+2024-03-05,INV-005,DB Bahn,67.50,EUR,ulasim,Hotel B,Tren bileti München-Berlin

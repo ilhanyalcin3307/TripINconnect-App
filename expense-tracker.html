@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarketingDesk — Harcama Takip</title>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<style>
+:root {
+  --bg: #0d0f12;
+  --surface: #13161b;
+  --surface2: #1a1e26;
+  --surface3: #21262f;
+  --border: #23282f;
+  --border2: #2d333d;
+  --accent: #00e5a0;
+  --accent2: #0098ff;
+  --accent3: #ff6b35;
+  --yellow: #ffd60a;
+  --text: #e8ecf0;
+  --text2: #7a8799;
+  --text3: #3d4654;
+  --red: #ff4d4d;
+  --purple: #a855f7;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: -200px;
+  right: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(0,229,160,0.04) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* SIDEBAR */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 0;
+  position: fixed;
+  width: 200px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.logo {
+  padding: 0 20px 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.logo-text {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.logo-text span { color: var(--accent); }
+
+.logo-sub {
+  font-size: 9px;
+  color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-top: 2px;
+}
+
+.nav { padding: 0 10px; flex: 1; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 2px;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(0,229,160,0.08); color: var(--accent); }
+.nav-icon { font-size: 15px; width: 18px; text-align: center; }
+
+.sidebar-stats {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.sidebar-stat { margin-bottom: 12px; }
+.sidebar-stat:last-child { margin-bottom: 0; }
+.sidebar-stat-label { font-size: 9px; color: var(--text3); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 1px; }
+.sidebar-stat-val { font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 2px; }
+
+/* MAIN */
+.main { margin-left: 200px; }
+
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.page-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
+.page-title span { color: var(--accent); }
+
+.header-right { display: flex; gap: 10px; align-items: center; }
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  transition: all 0.15s;
+}
+
+.btn-accent { background: var(--accent); color: #000; }
+.btn-accent:hover { opacity: 0.85; }
+.btn-outline { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+.btn-outline:hover { background: var(--surface2); color: var(--text); }
+.btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+
+.content { padding: 28px 32px; }
+
+/* VIEW TOGGLE */
+.view { display: none; }
+.view.active { display: block; }
+
+/* KPI */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.kpi:hover { border-color: var(--border2); }
+
+.kpi-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 8px;
+}
+
+.kpi-val {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.kpi-sub { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+
+.kpi-delta {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.delta-up { background: rgba(0,229,160,0.1); color: var(--accent); }
+.delta-down { background: rgba(255,77,77,0.1); color: var(--red); }
+
+.kpi-accent { border-color: rgba(0,229,160,0.2); }
+.kpi-accent .kpi-val { color: var(--accent); }
+
+/* CHART AREA */
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.card-sub {
+  font-size: 10px;
+  color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 18px;
+}
+
+/* BAR CHART */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 140px;
+  padding-bottom: 24px;
+  position: relative;
+}
+
+.bar-chart::before {
+  content: '';
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+.bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: opacity 0.2s;
+  cursor: pointer;
+}
+
+.bar:hover { opacity: 0.75; }
+.bar-label { font-size: 9px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+.bar-val { font-size: 9px; color: var(--text2); font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+/* CATEGORY BREAKDOWN */
+.cat-list { display: flex; flex-direction: column; gap: 10px; }
+
+.cat-item { }
+
+.cat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.cat-name { font-size: 12px; font-weight: 700; }
+.cat-amount { font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+.cat-bar { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+.cat-fill { height: 100%; border-radius: 2px; transition: width 1.2s ease; }
+
+/* EXPENSE TABLE */
+.expense-section { margin-bottom: 20px; }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-title { font-size: 15px; font-weight: 800; }
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  font-weight: 600;
+  transition: all 0.15s;
+  background: transparent;
+  font-family: 'Cabinet Grotesk', sans-serif;
+}
+
+.filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+.filter-chip.active { background: rgba(0,229,160,0.1); border-color: var(--accent); color: var(--accent); }
+
+.expense-table { width: 100%; border-collapse: collapse; }
+
+.expense-table th {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+  padding: 0 12px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.expense-table td {
+  padding: 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.expense-table tr:last-child td { border-bottom: none; }
+.expense-table tr:hover td { background: var(--surface2); }
+
+.receipt-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.receipt-thumb:hover { border-color: var(--accent); }
+
+.cat-badge {
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+}
+
+.cat-travel { background: rgba(0,152,255,0.12); color: var(--accent2); }
+.cat-food { background: rgba(255,107,53,0.12); color: var(--accent3); }
+.cat-hotel { background: rgba(168,85,247,0.12); color: var(--purple); }
+.cat-marketing { background: rgba(0,229,160,0.12); color: var(--accent); }
+.cat-other { background: rgba(255,214,10,0.12); color: var(--yellow); }
+
+.amount-cell { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; }
+
+.currency-flag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 5px;
+  background: var(--surface3);
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text2);
+  margin-right: 4px;
+}
+
+/* UPLOAD MODAL */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+  animation: modalIn 0.2s ease;
+  overflow: hidden;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title { font-size: 18px; font-weight: 800; }
+
+.modal-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: none;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.modal-close:hover { background: var(--surface3); }
+
+.modal-body { padding: 24px; }
+
+/* DROP ZONE */
+.drop-zone {
+  border: 2px dashed var(--border2);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(0,229,160,0.04);
+}
+
+.drop-icon { font-size: 36px; margin-bottom: 12px; }
+.drop-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.drop-sub { font-size: 12px; color: var(--text3); }
+
+.drop-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* AI PROCESSING */
+.ai-processing {
+  display: none;
+  text-align: center;
+  padding: 20px;
+}
+
+.ai-processing.show { display: block; }
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.ai-text { font-size: 13px; color: var(--text2); }
+.ai-step { font-size: 11px; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-top: 6px; }
+
+/* FORM FIELDS */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1/-1; }
+
+.form-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.form-input, .form-select, .form-textarea {
+  padding: 9px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--accent);
+}
+
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%233d4654'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+.form-select option { background: var(--surface2); }
+
+.form-textarea { resize: vertical; min-height: 60px; }
+
+.extracted-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0,229,160,0.08);
+  border: 1px solid rgba(0,229,160,0.2);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 16px;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* RECEIPT PREVIEW MODAL */
+.receipt-modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+  animation: modalIn 0.2s ease;
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--surface2);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 9999;
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all 0.3s;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* ANIMATIONS */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.kpi { animation: fadeUp 0.3s ease forwards; opacity: 0; }
+.kpi:nth-child(1) { animation-delay: 0.0s; }
+.kpi:nth-child(2) { animation-delay: 0.06s; }
+.kpi:nth-child(3) { animation-delay: 0.12s; }
+.kpi:nth-child(4) { animation-delay: 0.18s; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-text">MKT<span>Desk</span></div>
+      <div class="logo-sub">İlhan Yalçın</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="showView('dashboard', this)">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showView('fis', this)">
+        <span class="nav-icon">🧾</span> Fişler
+      </div>
+      <div class="nav-item" onclick="showView('oteller', this)">
+        <span class="nav-icon">🏨</span> Otel Bazlı
+      </div>
+      <div class="nav-item" onclick="showView('rapor', this)">
+        <span class="nav-icon">📄</span> Raporlar
+      </div>
+    </nav>
+    <div class="sidebar-stats">
+      <div class="sidebar-stat">
+        <div class="sidebar-stat-label">Bu Ay Toplam</div>
+        <div class="sidebar-stat-val" id="sidebar-total">€0</div>
+      </div>
+      <div class="sidebar-stat">
+        <div class="sidebar-stat-label">Fiş Sayısı</div>
+        <div class="sidebar-stat-val" id="sidebar-count">0</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <header class="header">
+      <div class="page-title" id="page-title">Marketing <span>Dashboard</span></div>
+      <div class="header-right">
+        <div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;" id="current-date"></div>
+        <button class="btn btn-outline" onclick="exportData()">↓ Export</button>
+        <button class="btn btn-accent" onclick="openUpload()">+ Fiş Ekle</button>
+      </div>
+    </header>
+
+    <!-- DASHBOARD VIEW -->
+    <div class="content view active" id="view-dashboard">
+
+      <div class="kpi-row">
+        <div class="kpi kpi-accent">
+          <div class="kpi-label">Bu Ay Toplam</div>
+          <div class="kpi-val" id="kpi-total">€0</div>
+          <div class="kpi-sub" id="kpi-total-sub">0 fiş</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Ortalama Harcama</div>
+          <div class="kpi-val" id="kpi-avg">€0</div>
+          <div class="kpi-sub">fiş başına</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">En Yüksek Kategori</div>
+          <div class="kpi-val" id="kpi-top-cat" style="font-size:18px;">—</div>
+          <div class="kpi-sub" id="kpi-top-cat-amt"></div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Para Birimi</div>
+          <div class="kpi-val" id="kpi-currencies" style="font-size:18px;">—</div>
+          <div class="kpi-sub">kullanılan</div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="card">
+          <div class="card-title">Aylık Harcama Trendi</div>
+          <div class="card-sub">Son 6 ay — EUR bazında</div>
+          <div class="bar-chart" id="bar-chart">
+            <div style="color:var(--text3);font-size:12px;margin:auto;">Henüz veri yok — fiş ekle</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Kategori Dağılımı</div>
+          <div class="card-sub">Bu ay</div>
+          <div class="cat-list" id="cat-breakdown">
+            <div style="color:var(--text3);font-size:12px;">Henüz veri yok</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FİŞLER VIEW -->
+    <div class="content view" id="view-fis">
+      <div class="section-header">
+        <div class="section-title">Tüm Fişler</div>
+        <button class="btn btn-accent btn-sm" onclick="openUpload()">+ Fiş Ekle</button>
+      </div>
+
+      <div class="filter-row">
+        <button class="filter-chip active" onclick="filterCat('tümü', this)">Tümü</button>
+        <button class="filter-chip" onclick="filterCat('seyahat', this)">✈ Seyahat</button>
+        <button class="filter-chip" onclick="filterCat('yemek', this)">🍽 Yemek</button>
+        <button class="filter-chip" onclick="filterCat('konaklama', this)">🏨 Konaklama</button>
+        <button class="filter-chip" onclick="filterCat('pazarlama', this)">📢 Pazarlama</button>
+        <button class="filter-chip" onclick="filterCat('diğer', this)">📦 Diğer</button>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <table class="expense-table" id="expense-table">
+          <thead>
+            <tr>
+              <th style="width:50px;">Fiş</th>
+              <th>Tarih</th>
+              <th>Fiş No</th>
+              <th>Açıklama</th>
+              <th>Kategori</th>
+              <th>Otel</th>
+              <th>Tutar</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="expense-body">
+            <tr>
+              <td colspan="8" style="text-align:center;color:var(--text3);padding:40px;font-size:13px;">
+                Henüz fiş yok — sağ üstten fiş ekle 🧾
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- OTEL BAZLI VIEW -->
+    <div class="content view" id="view-oteller">
+      <div class="section-title" style="margin-bottom:16px;">Otel Bazlı Harcamalar</div>
+      <div id="hotel-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+        <div style="color:var(--text3);font-size:13px;">Henüz veri yok</div>
+      </div>
+    </div>
+
+    <!-- RAPOR VIEW -->
+    <div class="content view" id="view-rapor">
+      <div class="section-title" style="margin-bottom:20px;">Aylık Rapor</div>
+      <div id="rapor-content" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;">
+        <div style="color:var(--text3);font-size:13px;">Fiş ekledikçe otomatik rapor oluşur</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div class="modal-overlay" id="upload-modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🧾 Fiş Ekle</div>
+      <button class="modal-close" onclick="closeUpload()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- DROP ZONE -->
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" accept="image/*,.pdf" onchange="handleFile(event)">
+        <div class="drop-icon">📸</div>
+        <div class="drop-title">Fiş fotoğrafını sürükle veya tıkla</div>
+        <div class="drop-sub">JPG, PNG — Tesseract OCR otomatik okur, okuyamazsa elle girersin</div>
+      </div>
+
+      <!-- AI PROCESSING -->
+      <div class="ai-processing" id="ai-processing">
+        <div class="spinner"></div>
+        <div class="ai-text">OCR okuyor...</div>
+        <div class="ai-step" id="ai-step">Başlıyor...</div>
+      </div>
+
+      <!-- OCR RAW OUTPUT -->
+      <div id="ocr-raw-box" style="display:none;margin-bottom:14px;">
+        <div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">OCR Ham Metin (kontrol et)</div>
+        <div id="ocr-raw" style="background:var(--surface3);border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text2);max-height:80px;overflow-y:auto;line-height:1.6;white-space:pre-wrap;"></div>
+      </div>
+
+      <!-- FORM -->
+      <div id="receipt-form" style="display:none;">
+        <div class="extracted-badge">
+          ✓ OCR ile dolduruldu — boş veya yanlış alanları düzelt
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Tarih</label>
+            <input class="form-input" type="date" id="f-tarih">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fiş No</label>
+            <input class="form-input" type="text" id="f-fisno" placeholder="INV-2026-001">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Açıklama</label>
+            <input class="form-input" type="text" id="f-aciklama" placeholder="Harcama açıklaması">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tutar</label>
+            <input class="form-input" type="number" id="f-tutar" placeholder="0.00" step="0.01">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Para Birimi</label>
+            <select class="form-select" id="f-currency">
+              <option value="EUR">EUR — Euro</option>
+              <option value="TRY">TRY — Türk Lirası</option>
+              <option value="CZK">CZK — Çek Korunası</option>
+              <option value="USD">USD — Dolar</option>
+              <option value="GBP">GBP — Sterlin</option>
+              <option value="CHF">CHF — İsviçre Frangı</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kategori</label>
+            <select class="form-select" id="f-kategori">
+              <option value="seyahat">✈ Seyahat</option>
+              <option value="yemek">🍽 Yemek & Eğlence</option>
+              <option value="konaklama">🏨 Konaklama</option>
+              <option value="pazarlama">📢 Pazarlama</option>
+              <option value="diğer">📦 Diğer</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Otel</label>
+            <select class="form-select" id="f-otel">
+              <option value="Genel">Genel / Ortak</option>
+              <option value="Selectum Luxury Belek">Selectum Luxury Belek</option>
+              <option value="Selectum Family Belek">Selectum Family Belek</option>
+              <option value="Selectum Noa Belek">Selectum Noa Belek</option>
+              <option value="Selectum Family Side">Selectum Family Side</option>
+              <option value="Selectum Colours Side">Selectum Colours Side</option>
+              <option value="Selectum Colours Bodrum">Selectum Colours Bodrum</option>
+              <option value="Asteria Family Belek">Asteria Family Belek</option>
+              <option value="Asteria Family Side">Asteria Family Side</option>
+              <option value="The Norm Doora">The Norm Doora</option>
+              <option value="The Norm Kemer">The Norm Kemer</option>
+              <option value="Kremlin Palace">Kremlin Palace</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Not</label>
+            <textarea class="form-textarea" id="f-not" placeholder="Ek açıklama..."></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeUpload()">İptal</button>
+      <button class="btn btn-accent" id="save-btn" onclick="saveExpense()" style="display:none;">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// DATA
+let expenses = JSON.parse(localStorage.getItem('mktdesk_expenses') || '[]');
+let currentFilter = 'tümü';
+
+const catColors = {
+  seyahat: '#0098ff',
+  yemek: '#ff6b35',
+  konaklama: '#a855f7',
+  pazarlama: '#00e5a0',
+  diğer: '#ffd60a'
+};
+
+const catClass = {
+  seyahat: 'cat-travel',
+  yemek: 'cat-food',
+  konaklama: 'cat-hotel',
+  pazarlama: 'cat-marketing',
+  diğer: 'cat-other'
+};
+
+const catEmoji = {
+  seyahat: '✈',
+  yemek: '🍽',
+  konaklama: '🏨',
+  pazarlama: '📢',
+  diğer: '📦'
+};
+
+// DATE
+document.getElementById('current-date').textContent = new Date().toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' });
+
+// SHOW VIEW
+function showView(view, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  if (el) el.classList.add('active');
+
+  const titles = {
+    dashboard: 'Marketing <span style="color:var(--accent)">Dashboard</span>',
+    fis: 'Fiş <span style="color:var(--accent)">Listesi</span>',
+    oteller: 'Otel Bazlı <span style="color:var(--accent)">Harcamalar</span>',
+    rapor: 'Aylık <span style="color:var(--accent)">Rapor</span>'
+  };
+  document.getElementById('page-title').innerHTML = titles[view];
+
+  if (view === 'oteller') renderHotels();
+  if (view === 'rapor') renderReport();
+}
+
+// OPEN UPLOAD
+function openUpload() {
+  document.getElementById('upload-modal').classList.add('open');
+  document.getElementById('drop-zone').style.display = 'block';
+  document.getElementById('ai-processing').classList.remove('show');
+  document.getElementById('receipt-form').style.display = 'none';
+  document.getElementById('save-btn').style.display = 'none';
+  // Set today's date
+  document.getElementById('f-tarih').value = new Date().toISOString().split('T')[0];
+}
+
+function closeUpload() {
+  document.getElementById('upload-modal').classList.remove('open');
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('upload-modal')) closeUpload();
+}
+
+// HANDLE FILE — Gerçek Tesseract OCR
+async function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // Preview image
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    document.getElementById('drop-zone').style.display = 'none';
+    document.getElementById('ai-processing').classList.add('show');
+    document.getElementById('save-btn').style.display = 'none';
+
+    const imgSrc = ev.target.result;
+
+    // Show image preview small
+    const previewEl = document.getElementById('receipt-preview-img');
+    if (previewEl) previewEl.src = imgSrc;
+
+    try {
+      // Tesseract OCR
+      setStep('Görüntü yükleniyor...');
+      const result = await Tesseract.recognize(imgSrc, 'deu+tur+eng', {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            setStep('Metin okunuyor... %' + Math.round(m.progress * 100));
+          }
+        }
+      });
+
+      const text = result.data.text;
+      setStep('✓ OCR tamamlandı — veriler çıkarılıyor...');
+
+      // Parse OCR text
+      const parsed = parseReceiptText(text);
+
+      setTimeout(() => {
+        document.getElementById('ai-processing').classList.remove('show');
+        document.getElementById('receipt-form').style.display = 'block';
+        document.getElementById('save-btn').style.display = 'block';
+
+        // Fill form with parsed data
+        if (parsed.tarih) document.getElementById('f-tarih').value = parsed.tarih;
+        if (parsed.fisno) document.getElementById('f-fisno').value = parsed.fisno;
+        if (parsed.tutar) document.getElementById('f-tutar').value = parsed.tutar;
+        if (parsed.currency) document.getElementById('f-currency').value = parsed.currency;
+        if (parsed.aciklama) document.getElementById('f-aciklama').value = parsed.aciklama;
+
+        // Show raw OCR text so user can check
+        document.getElementById('ocr-raw').textContent = text.substring(0, 300) + (text.length > 300 ? '...' : '');
+        document.getElementById('ocr-raw-box').style.display = 'block';
+
+        const filledCount = [parsed.tarih, parsed.fisno, parsed.tutar].filter(Boolean).length;
+        showToast(filledCount > 0 ? `✓ OCR: ${filledCount} alan dolduruldu` : '⚠️ OCR okudu ama alan çıkaramadı — elle gir');
+      }, 400);
+
+    } catch (err) {
+      document.getElementById('ai-processing').classList.remove('show');
+      document.getElementById('receipt-form').style.display = 'block';
+      document.getElementById('save-btn').style.display = 'block';
+      document.getElementById('ocr-raw-box').style.display = 'none';
+      showToast('⚠️ OCR başarısız — lütfen elle gir');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function setStep(msg) {
+  document.getElementById('ai-step').textContent = msg;
+}
+
+// PARSE RECEIPT TEXT
+function parseReceiptText(text) {
+  const result = {};
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // DATE — çeşitli formatlar: 11.03.2026, 11/03/2026, 2026-03-11
+  const datePatterns = [
+    /(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{2,4})/,
+    /(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/
+  ];
+  for (const line of lines) {
+    for (const pat of datePatterns) {
+      const m = line.match(pat);
+      if (m) {
+        try {
+          let d;
+          if (m[1].length === 4) d = new Date(`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`);
+          else d = new Date(`${m[3].length===2?'20'+m[3]:m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`);
+          if (!isNaN(d)) { result.tarih = d.toISOString().split('T')[0]; break; }
+        } catch(e) {}
+      }
+      if (result.tarih) break;
+    }
+    if (result.tarih) break;
+  }
+
+  // INVOICE / RECEIPT NUMBER
+  const fisPatterns = [
+    /(?:invoice|inv|rechnung|receipt|beleg|bon|no|nr|#)[.\s:]*([A-Z0-9\-\/]{4,20})/i,
+    /([A-Z]{2,4}[\-\/]\d{4,10})/
+  ];
+  for (const line of lines) {
+    for (const pat of fisPatterns) {
+      const m = line.match(pat);
+      if (m) { result.fisno = m[1]; break; }
+    }
+    if (result.fisno) break;
+  }
+
+  // AMOUNT — en büyük para tutarını al (genellikle toplam budur)
+  const amountPattern = /(?:total|gesamt|toplam|sum|betrag|amount|eur|€|tl|czk)?\s*(\d{1,6}[.,]\d{2})\s*(?:eur|€|tl|czk)?/gi;
+  const amounts = [];
+  let m;
+  while ((m = amountPattern.exec(text)) !== null) {
+    const val = parseFloat(m[1].replace(',', '.'));
+    if (val > 0 && val < 99999) amounts.push(val);
+  }
+  if (amounts.length) result.tutar = Math.max(...amounts).toFixed(2);
+
+  // CURRENCY
+  if (/€|EUR/i.test(text)) result.currency = 'EUR';
+  else if (/CZK|Kč/i.test(text)) result.currency = 'CZK';
+  else if (/TL|TRY|₺/i.test(text)) result.currency = 'TRY';
+  else if (/CHF/i.test(text)) result.currency = 'CHF';
+  else if (/\$|USD/i.test(text)) result.currency = 'USD';
+
+  // DESCRIPTION — ilk anlamlı satırı al
+  const skipWords = /total|gesamt|datum|date|invoice|receipt|tel|fax|www|http|vat|mwst|kdv/i;
+  for (const line of lines) {
+    if (line.length > 5 && line.length < 80 && !skipWords.test(line) && !/^\d+$/.test(line)) {
+      result.aciklama = line.substring(0, 60);
+      break;
+    }
+  }
+
+  return result;
+}
+
+// SAVE EXPENSE
+function saveExpense() {
+  const tutar = parseFloat(document.getElementById('f-tutar').value);
+  if (!tutar || tutar <= 0) { showToast('⚠️ Tutar giriniz!'); return; }
+
+  const expense = {
+    id: Date.now(),
+    tarih: document.getElementById('f-tarih').value,
+    fisno: document.getElementById('f-fisno').value || 'FIS-' + Date.now(),
+    aciklama: document.getElementById('f-aciklama').value || 'Harcama',
+    tutar: tutar,
+    currency: document.getElementById('f-currency').value,
+    kategori: document.getElementById('f-kategori').value,
+    otel: document.getElementById('f-otel').value,
+    not: document.getElementById('f-not').value,
+    hasReceipt: true
+  };
+
+  expenses.unshift(expense);
+  localStorage.setItem('mktdesk_expenses', JSON.stringify(expenses));
+
+  closeUpload();
+  renderAll();
+  showToast('✓ Fiş kaydedildi!');
+}
+
+// DELETE
+function deleteExpense(id) {
+  expenses = expenses.filter(e => e.id !== id);
+  localStorage.setItem('mktdesk_expenses', JSON.stringify(expenses));
+  renderAll();
+  showToast('🗑 Fiş silindi');
+}
+
+// FILTER
+function filterCat(cat, el) {
+  currentFilter = cat;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderExpenses();
+}
+
+// RENDER ALL
+function renderAll() {
+  renderKPIs();
+  renderExpenses();
+  renderChart();
+  renderCatBreakdown();
+  updateSidebar();
+}
+
+// KPIs
+function renderKPIs() {
+  const thisMonth = new Date().getMonth();
+  const thisYear = new Date().getFullYear();
+  const monthExpenses = expenses.filter(e => {
+    const d = new Date(e.tarih);
+    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+  });
+
+  const total = monthExpenses.reduce((s, e) => s + (e.currency === 'EUR' ? e.tutar : e.tutar * 0.034), 0);
+  const avg = monthExpenses.length ? total / monthExpenses.length : 0;
+
+  document.getElementById('kpi-total').textContent = '€' + total.toFixed(0);
+  document.getElementById('kpi-total-sub').textContent = monthExpenses.length + ' fiş';
+  document.getElementById('kpi-avg').textContent = '€' + avg.toFixed(0);
+
+  // Top category
+  const catTotals = {};
+  monthExpenses.forEach(e => {
+    if (!catTotals[e.kategori]) catTotals[e.kategori] = 0;
+    catTotals[e.kategori] += e.tutar;
+  });
+
+  const topCat = Object.entries(catTotals).sort((a,b) => b[1]-a[1])[0];
+  if (topCat) {
+    document.getElementById('kpi-top-cat').textContent = catEmoji[topCat[0]] + ' ' + topCat[0].charAt(0).toUpperCase() + topCat[0].slice(1);
+    document.getElementById('kpi-top-cat-amt').textContent = '€' + topCat[1].toFixed(0);
+  }
+
+  // Currencies
+  const currencies = [...new Set(expenses.map(e => e.currency))];
+  document.getElementById('kpi-currencies').textContent = currencies.join(', ') || '—';
+}
+
+// EXPENSE TABLE
+function renderExpenses() {
+  const body = document.getElementById('expense-body');
+  let filtered = currentFilter === 'tümü' ? expenses : expenses.filter(e => e.kategori === currentFilter);
+
+  if (!filtered.length) {
+    body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:40px;font-size:13px;">Fiş bulunamadı 🧾</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = filtered.map(e => `
+    <tr>
+      <td><div class="receipt-thumb" title="Fiş görüntüle">${e.hasReceipt ? '🧾' : '📄'}</div></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);">${e.tarih}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);">${e.fisno}</td>
+      <td>
+        <div style="font-weight:600;font-size:13px;">${e.aciklama}</div>
+        ${e.otel ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">🏨 ${e.otel}</div>` : ''}
+      </td>
+      <td><span class="cat-badge ${catClass[e.kategori]}">${catEmoji[e.kategori]} ${e.kategori}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${e.otel || '—'}</td>
+      <td class="amount-cell">
+        <span class="currency-flag">${e.currency}</span>${e.tutar.toFixed(2)}
+      </td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="deleteExpense(${e.id})" style="color:var(--red);border-color:rgba(255,77,77,0.2);">Sil</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// BAR CHART
+function renderChart() {
+  const chart = document.getElementById('bar-chart');
+  if (!expenses.length) {
+    chart.innerHTML = '<div style="color:var(--text3);font-size:12px;margin:auto;">Henüz veri yok — fiş ekle</div>';
+    return;
+  }
+
+  // Group by month
+  const monthly = {};
+  expenses.forEach(e => {
+    const d = new Date(e.tarih);
+    const key = d.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' });
+    if (!monthly[key]) monthly[key] = 0;
+    monthly[key] += e.tutar;
+  });
+
+  const entries = Object.entries(monthly).slice(-6);
+  const max = Math.max(...entries.map(e => e[1]));
+
+  chart.innerHTML = entries.map(([month, amt]) => {
+    const pct = (amt / max * 100).toFixed(0);
+    return `
+      <div class="bar-group">
+        <div class="bar-val">€${amt > 999 ? (amt/1000).toFixed(1)+'K' : amt.toFixed(0)}</div>
+        <div class="bar" style="height:${pct}%;background:var(--accent);opacity:0.8;"></div>
+        <div class="bar-label">${month}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// CATEGORY BREAKDOWN
+function renderCatBreakdown() {
+  const div = document.getElementById('cat-breakdown');
+  if (!expenses.length) {
+    div.innerHTML = '<div style="color:var(--text3);font-size:12px;">Henüz veri yok</div>';
+    return;
+  }
+
+  const catTotals = {};
+  expenses.forEach(e => {
+    if (!catTotals[e.kategori]) catTotals[e.kategori] = 0;
+    catTotals[e.kategori] += e.tutar;
+  });
+
+  const total = Object.values(catTotals).reduce((a,b) => a+b, 0);
+  const sorted = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
+
+  div.innerHTML = sorted.map(([cat, amt]) => `
+    <div class="cat-item">
+      <div class="cat-header">
+        <div class="cat-name">${catEmoji[cat]} ${cat.charAt(0).toUpperCase()+cat.slice(1)}</div>
+        <div class="cat-amount" style="color:${catColors[cat]}">€${amt.toFixed(0)}</div>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-fill" style="width:${(amt/total*100).toFixed(0)}%;background:${catColors[cat]};"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// HOTEL VIEW
+function renderHotels() {
+  const grid = document.getElementById('hotel-grid');
+  if (!expenses.length) {
+    grid.innerHTML = '<div style="color:var(--text3);font-size:13px;">Henüz veri yok</div>';
+    return;
+  }
+
+  const hotelData = {};
+  expenses.forEach(e => {
+    const h = e.otel || 'Genel';
+    if (!hotelData[h]) hotelData[h] = { total: 0, count: 0, categories: {} };
+    hotelData[h].total += e.tutar;
+    hotelData[h].count++;
+    if (!hotelData[h].categories[e.kategori]) hotelData[h].categories[e.kategori] = 0;
+    hotelData[h].categories[e.kategori] += e.tutar;
+  });
+
+  grid.innerHTML = Object.entries(hotelData).sort((a,b) => b[1].total - a[1].total).map(([hotel, data]) => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;">
+      <div style="font-size:13px;font-weight:800;margin-bottom:4px;">🏨 ${hotel}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--accent);margin:8px 0;">€${data.total.toFixed(0)}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">${data.count} fiş</div>
+      ${Object.entries(data.categories).map(([cat, amt]) => `
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-top:1px solid var(--border);">
+          <span style="color:var(--text2);">${catEmoji[cat]} ${cat}</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:${catColors[cat]};">€${amt.toFixed(0)}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+// REPORT
+function renderReport() {
+  const div = document.getElementById('rapor-content');
+  if (!expenses.length) {
+    div.innerHTML = '<div style="color:var(--text3);font-size:13px;">Fiş ekledikçe otomatik rapor oluşur</div>';
+    return;
+  }
+
+  const total = expenses.reduce((s,e) => s+e.tutar, 0);
+  const catTotals = {};
+  expenses.forEach(e => {
+    if (!catTotals[e.kategori]) catTotals[e.kategori] = 0;
+    catTotals[e.kategori] += e.tutar;
+  });
+
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <div>
+        <div style="font-size:20px;font-weight:900;">Harcama Raporu</div>
+        <div style="font-size:12px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px;">${new Date().toLocaleDateString('tr-TR',{month:'long',year:'numeric'})}</div>
+      </div>
+      <div style="font-size:28px;font-weight:900;color:var(--accent);">€${total.toFixed(2)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+      ${Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).map(([cat,amt])=>`
+        <div style="background:var(--surface2);border-radius:10px;padding:14px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-weight:700;">${catEmoji[cat]} ${cat.charAt(0).toUpperCase()+cat.slice(1)}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${catColors[cat]};">€${amt.toFixed(2)}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:12px;color:var(--text3);">Toplam ${expenses.length} fiş</div>
+      <button class="btn btn-accent btn-sm" onclick="exportData()">↓ Excel İndir</button>
+    </div>
+  `;
+}
+
+// SIDEBAR UPDATE
+function updateSidebar() {
+  const thisMonth = new Date().getMonth();
+  const monthTotal = expenses
+    .filter(e => new Date(e.tarih).getMonth() === thisMonth)
+    .reduce((s,e) => s+e.tutar, 0);
+
+  document.getElementById('sidebar-total').textContent = '€' + monthTotal.toFixed(0);
+  document.getElementById('sidebar-count').textContent = expenses.length;
+}
+
+// EXPORT
+function exportData() {
+  if (!expenses.length) { showToast('⚠️ Dışa aktarılacak veri yok'); return; }
+
+  const csv = ['Tarih,Fiş No,Açıklama,Kategori,Otel,Tutar,Para Birimi,Not']
+    .concat(expenses.map(e => `${e.tarih},${e.fisno},"${e.aciklama}",${e.kategori},"${e.otel}",${e.tutar},${e.currency},"${e.not}"`))
+    .join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'mktdesk_harcamalar.csv';
+  a.click();
+  showToast('✓ CSV indirildi!');
+}
+
+// TOAST
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// INIT
+renderAll();
+</script>
+</body>
+</html>

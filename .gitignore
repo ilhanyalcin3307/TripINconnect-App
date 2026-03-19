@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+*.db
+.DS_Store
+
+# Environment variables (contains secrets)
+.env
+
+# User data (local development)
+*.log
