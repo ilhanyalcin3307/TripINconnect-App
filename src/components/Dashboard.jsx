@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { calcProvisionDates } from '../lib/provisionUtils';
 
 // Maliyet kalemlerinin renkleri
 const COST_COLORS = {
@@ -22,26 +23,6 @@ const COST_EMOJI = {
   diger: '💼'
 };
 
-const PROGRAM_EMOJI = {
-  'Workshop': '🎯',
-  'Fuar': '🏢',
-  'Roadshow': '🚗',
-  'Sales Call': '📞',
-  'Gala': '🎭',
-  'Ziyaret': '🤝',
-  'Info Tour': '🚌'
-};
-
-const PROGRAM_COLORS = {
-  'Fuar': { bg: '#166534', border: '#16a34a' },
-  'Workshop': { bg: '#1e3a8a', border: '#2563eb' },
-  'Roadshow': { bg: '#9a3412', border: '#ea580c' },
-  'Sales Call': { bg: '#581c87', border: '#a855f7' },
-  'Gala': { bg: '#991b1b', border: '#dc2626' },
-  'Ziyaret': { bg: '#0e7490', border: '#06b6d4' },
-  'Info Tour': { bg: '#713f12', border: '#ca8a04' },
-  'Diğer': { bg: '#374151', border: '#6b7280' }
-};
 
 const WEEKDAYS_SHORT = ['M', 'D', 'M', 'D', 'F', 'S', 'S'];
 const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 
@@ -53,80 +34,16 @@ const formatDate = (dateStr) => {
   return `${day}.${month}.${year}`;
 };
 
-function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { EUR: 1, USD: 0.92, GBP: 1.17, TRY: 0.029 } }) {
+function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { EUR: 1, USD: 0.92, GBP: 1.17, TRY: 0.029 }, agenturData = {} }) {
   // Takvim state
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [selectedCalDay, setSelectedCalDay] = useState(null);
   
-  // KPI hesaplamaları - Sadece Marketing verileri
+  // KPI hesaplamaları
   const kpiData = useMemo(() => {
     const now = new Date();
     const thisMonth = now.getMonth();
     const thisYear = now.getFullYear();
-
-    // Marketing harcamaları hesaplama
-    const calculateMarketingCost = (event) => {
-      const katilim = parseFloat(event.katilimUcreti) || 0;
-      const standYer = parseFloat(event.standYerUcreti) || 0;
-      const stand = parseFloat(event.standBedeli) || 0;
-      const diger = parseFloat(event.digerUcret) || 0;
-      const total = katilim + standYer + stand + diger;
-      
-      // Merkezi döviz kurlarını kullan
-      const rate = exchangeRates[event.currency || 'EUR'] || 1;
-      return total * rate;
-    };
-
-    // Bu ay marketing etkinlikleri
-    const monthMarketing = marketingEvents.filter(e => {
-      const d = new Date(e.tarih);
-      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-    });
-
-    // Bu yıl marketing etkinlikleri
-    const yearMarketing = marketingEvents.filter(e => {
-      const d = new Date(e.tarih);
-      return d.getFullYear() === thisYear;
-    });
-
-    // Marketing toplamları
-    const monthMarketingTotal = monthMarketing.reduce((s, e) => s + calculateMarketingCost(e), 0);
-    const yearMarketingTotal = yearMarketing.reduce((s, e) => s + calculateMarketingCost(e), 0);
-
-    // Ortalama etkinlik maliyeti
-    const avgEventCost = monthMarketing.length > 0 ? monthMarketingTotal / monthMarketing.length : 0;
-
-    // Maliyet kalemleri toplamları (bu ay)
-    let katilimTotal = 0;
-    let standYerTotal = 0;
-    let standYapimTotal = 0;
-    let digerTotal = 0;
-
-    monthMarketing.forEach(e => {
-      const rate = exchangeRates[e.currency || 'EUR'] || 1;
-      
-      katilimTotal += (parseFloat(e.katilimUcreti) || 0) * rate;
-      standYerTotal += (parseFloat(e.standYerUcreti) || 0) * rate;
-      standYapimTotal += (parseFloat(e.standBedeli) || 0) * rate;
-      digerTotal += (parseFloat(e.digerUcret) || 0) * rate;
-    });
-
-    // En yüksek maliyet kalemi
-    const costItems = [
-      { name: 'katilim', total: katilimTotal },
-      { name: 'standYer', total: standYerTotal },
-      { name: 'standYapim', total: standYapimTotal },
-      { name: 'diger', total: digerTotal }
-    ].sort((a, b) => b.total - a.total);
-
-    const topCostItem = costItems[0];
-
-    // En yüksek program tipi
-    const programTypes = {};
-    monthMarketing.forEach(e => {
-      if (!programTypes[e.programTipi]) programTypes[e.programTipi] = 0;
-      programTypes[e.programTipi]++;
-    });
-    const topProgramType = Object.entries(programTypes).sort((a, b) => b[1] - a[1])[0];
 
     // ====== REZERVASYON VERİLERİ ======
     // Bu ay rezervasyonları (buchung tarihine göre)
@@ -180,8 +97,27 @@ function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { 
     // Bu yılın provizyon hakedişi
     const yearProvision = yearReservations.reduce((s, r) => s + calculateProvision(r), 0);
 
-    // Bu ayın provizyon hakedişi
+    // Bu ayın provizyon hakedişi (buchung tarihine göre)
     const monthProvision = monthReservations.reduce((s, r) => s + calculateProvision(r), 0);
+
+    // Bu ay ödeme tarihi düşen provizyon (tarih bazlı DKI/RBI hesabı)
+    const startOfMonth = new Date(thisYear, thisMonth, 1);
+    const endOfMonth = new Date(thisYear, thisMonth + 1, 0, 23, 59, 59);
+    let monthProvisionDue = 0;
+    reservations.forEach(r => {
+      if (r.status === 'iptal') return;
+      const vaCode = (r.gebuchteVA || '').trim().toUpperCase();
+      const entry = agenturData[vaCode] ||
+        Object.entries(agenturData).find(([k]) => k.toUpperCase() === vaCode)?.[1];
+      if (!entry) return;
+      const result = calcProvisionDates(r, entry);
+      if (!result) return;
+      result.payments.forEach(p => {
+        if (p.date >= startOfMonth && p.date <= endOfMonth) {
+          monthProvisionDue += p.amount;
+        }
+      });
+    });
 
     // Geçen dönem karşılaştırmaları için hesaplamalar
     // Geçen ay
@@ -230,18 +166,6 @@ function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { 
     };
 
     return {
-      monthMarketingTotal,
-      yearMarketingTotal,
-      monthEventsCount: monthMarketing.length,
-      yearEventsCount: yearMarketing.length,
-      avgEventCost,
-      katilimTotal,
-      standYerTotal,
-      standYapimTotal,
-      digerTotal,
-      topCostItem,
-      topProgramType,
-      costItems,
       // Rezervasyon KPI'ları
       monthReservationCount: monthReservations.length,
       yearReservationCount: yearReservations.length,
@@ -252,6 +176,7 @@ function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { 
       totalProvision,
       yearProvision,
       monthProvision,
+      monthProvisionDue,
       avgReservationValue,
       uniqueCustomers,
       statusCounts,
@@ -260,7 +185,7 @@ function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { 
       monthProvisionChangePercent,
       yearProvisionChangePercent
     };
-  }, [marketingEvents, reservations, exchangeRates]);
+  }, [reservations, exchangeRates, agenturData]);
 
   // Yaklaşan tatiller - İlk 10 rezervasyon
   const upcomingReservations = useMemo(() => {
@@ -311,80 +236,6 @@ function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { 
     
     return onVacation;
   }, [reservations]);
-
-  // Aylık chart data (sadece marketing)
-  const chartData = useMemo(() => {
-    const monthlyMarketing = {};
-
-    // Marketing events
-    marketingEvents.forEach(e => {
-      const d = new Date(e.tarih);
-      const key = d.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
-      if (!monthlyMarketing[key]) monthlyMarketing[key] = 0;
-      
-      const katilim = parseFloat(e.katilimUcreti) || 0;
-      const standYer = parseFloat(e.standYerUcreti) || 0;
-      const stand = parseFloat(e.standBedeli) || 0;
-      const diger = parseFloat(e.digerUcret) || 0;
-      const total = katilim + standYer + stand + diger;
-      
-      const rates = { EUR: 1, USD: 0.92, GBP: 1.17, TRY: 0.03 };
-      monthlyMarketing[key] += total * (rates[e.currency || 'EUR'] || 1);
-    });
-
-    // Aylara dönüştür
-    const combined = Object.keys(monthlyMarketing).map(month => ({
-      month,
-      marketing: monthlyMarketing[month] || 0
-    }));
-
-    // Son 6 ayı al ve sırala
-    return combined.slice(-6);
-  }, [marketingEvents]);
-
-  const maxAmt = chartData.length 
-    ? Math.max(...chartData.map(d => d.marketing)) 
-    : 0;
-
-  // Maliyet kalemleri breakdown (bu ay) - detaylı
-  const costBreakdown = kpiData.costItems
-    .filter(item => item.total > 0)
-    .map(item => {
-      // Bu maliyet kalemini kullanan etkinlik sayısı
-      const eventCount = marketingEvents.filter(e => {
-        const d = new Date(e.tarih);
-        const now = new Date();
-        if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return false;
-        
-        const rate = exchangeRates[e.currency || 'EUR'] || 1;
-        
-        let value = 0;
-        if (item.name === 'katilim') value = (parseFloat(e.katilimUcreti) || 0) * rate;
-        if (item.name === 'standYer') value = (parseFloat(e.standYerUcreti) || 0) * rate;
-        if (item.name === 'standYapim') value = (parseFloat(e.standBedeli) || 0) * rate;
-        if (item.name === 'diger') value = (parseFloat(e.digerUcret) || 0) * rate;
-        
-        return value > 0;
-      }).length;
-      
-      return { ...item, eventCount };
-    });
-  const costTotal = costBreakdown.reduce((a, b) => a + b.total, 0);
-
-  // Yaklaşan marketing etkinlikleri
-  const upcomingEvents = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    return marketingEvents
-      .filter(e => {
-        const eventDate = new Date(e.tarih);
-        eventDate.setHours(0, 0, 0, 0);
-        return eventDate >= today;
-      })
-      .sort((a, b) => new Date(a.tarih) - new Date(b.tarih))
-      .slice(0, 10); // İlk 10 etkinlik
-  }, [marketingEvents]);
 
   // Top 10 Lokasyonlar (en çok rezervasyon olan destinasyonlar)
   const topDestinations = useMemo(() => {
@@ -463,23 +314,43 @@ function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { 
            date1.getFullYear() === date2.getFullYear();
   };
 
-  // Events'leri tarihe göre grupla
-  const eventsByDate = useMemo(() => {
-    const grouped = {};
-    marketingEvents.forEach(event => {
-      const startDate = parseDate(event.tarih);
-      const endDate = event.tarihBitis ? parseDate(event.tarihBitis) : startDate;
-      
-      const currentDate = new Date(startDate);
-      while (currentDate <= endDate) {
-        const key = formatDateISO(currentDate);
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(event);
-        currentDate.setDate(currentDate.getDate() + 1);
+  // Ödeme tarihlerini gün bazında grupla (Anz / Rest / Prov)
+  const zpByDate = useMemo(() => {
+    const map = {};
+    const fmtKey = (date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+    reservations.forEach(r => {
+      if (!r.gebuchteVA) return;
+      const code = r.gebuchteVA.trim().toUpperCase();
+      const ag = agenturData[code] ||
+        Object.entries(agenturData).find(([k]) => k.toUpperCase() === code)?.[1];
+      const result = calcProvisionDates(r, ag || {});
+      if (!result || result.payments.length === 0) return;
+      const amount = result.payments.reduce((s, p) => s + p.amount, 0);
+      if (amount <= 0) return;
+      const p0 = result.payments[0];
+      const p1 = result.payments[1] || null;
+      // Anzahlung
+      const anzKey = fmtKey(p0.date);
+      if (!map[anzKey]) map[anzKey] = { anz: 0, rest: 0, prov: 0 };
+      map[anzKey].anz += p0.amount;
+      // Restzahlung
+      if (p1) {
+        const restKey = fmtKey(p1.date);
+        if (!map[restKey]) map[restKey] = { anz: 0, rest: 0, prov: 0 };
+        map[restKey].rest += p1.amount;
       }
+      // Provision
+      const provKey = fmtKey(p1 ? p1.date : p0.date);
+      if (!map[provKey]) map[provKey] = { anz: 0, rest: 0, prov: 0 };
+      map[provKey].prov += amount;
     });
-    return grouped;
-  }, [marketingEvents]);
+    return map;
+  }, [reservations, agenturData]);
 
   // Takvim günlerini oluştur
   const getCalendarDays = () => {
@@ -988,6 +859,7 @@ function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { 
                   const newDate = new Date(calendarDate);
                   newDate.setMonth(newDate.getMonth() - 1);
                   setCalendarDate(newDate);
+                  setSelectedCalDay(null);
                 }}
                 style={{
                   padding: '4px 8px',
@@ -1006,6 +878,7 @@ function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { 
                   const newDate = new Date(calendarDate);
                   newDate.setMonth(newDate.getMonth() + 1);
                   setCalendarDate(newDate);
+                  setSelectedCalDay(null);
                 }}
                 style={{
                   padding: '4px 8px',
@@ -1053,58 +926,105 @@ function Dashboard({ marketingEvents = [], reservations = [], exchangeRates = { 
           }}>
             {calendarDays.map((dayObj, index) => {
               const dateKey = formatDateISO(dayObj.date);
-              const dayEvents = eventsByDate[dateKey] || [];
+              const dayData = zpByDate[dateKey];
               const isToday = isSameDay(dayObj.date, today);
-              
+              const isSelected = selectedCalDay && isSameDay(dayObj.date, selectedCalDay);
               return (
                 <div
                   key={index}
+                  onClick={() => {
+                    if (!dayData) return;
+                    setSelectedCalDay(prev => prev && isSameDay(prev, dayObj.date) ? null : dayObj.date);
+                  }}
                   style={{
                     padding: '4px',
-                    backgroundColor: isToday ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg)',
-                    border: '1px solid var(--border)',
+                    backgroundColor: isSelected ? 'rgba(0,184,122,0.15)' : isToday ? 'rgba(59,130,246,0.15)' : 'var(--bg)',
+                    border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
                     borderRadius: '4px',
                     opacity: dayObj.isCurrentMonth ? 1 : 0.3,
                     minHeight: '32px',
-                    position: 'relative',
-                    cursor: dayEvents.length > 0 ? 'pointer' : 'default'
+                    cursor: dayData ? 'pointer' : 'default',
+                    transition: 'all 0.12s'
                   }}
-                  title={dayEvents.map(e => e.programAdi).join(', ')}
                 >
                   <div style={{
                     fontSize: '11px',
-                    fontWeight: isToday ? 600 : 400,
-                    color: isToday ? '#3b82f6' : 'var(--text)',
-                    marginBottom: '2px'
+                    fontWeight: isToday || isSelected ? 600 : 400,
+                    color: isSelected ? 'var(--accent)' : isToday ? '#3b82f6' : 'var(--text)'
                   }}>
                     {dayObj.date.getDate()}
                   </div>
-                  {dayEvents.length > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '1px'
-                    }}>
-                      {dayEvents.slice(0, 3).map((event, i) => {
-                        const colors = PROGRAM_COLORS[event.programTipi] || PROGRAM_COLORS['Diğer'];
-                        return (
-                          <div
-                            key={event.id ? event.id + '-' + i : i}
-                            style={{
-                              width: '4px',
-                              height: '4px',
-                              backgroundColor: colors.border,
-                              borderRadius: '50%'
-                            }}
-                          ></div>
-                        );
-                      })}
+                  {dayData && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1px', marginTop: '2px' }}>
+                      {dayData.anz > 0 && <div style={{ width: '4px', height: '4px', backgroundColor: 'var(--accent)', borderRadius: '50%' }} />}
+                      {dayData.rest > 0 && <div style={{ width: '4px', height: '4px', backgroundColor: '#f59e0b', borderRadius: '50%' }} />}
+                      {dayData.prov > 0 && <div style={{ width: '4px', height: '4px', backgroundColor: '#818cf8', borderRadius: '50%' }} />}
                     </div>
                   )}
                 </div>
               );
             })}
           </div>
+
+          {/* Gün / Ay özeti */}
+          {(() => {
+            if (!selectedCalDay) {
+              // Ay toplamları
+              const monthPrefix = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}`;
+              let anz = 0, rest = 0, prov = 0;
+              Object.entries(zpByDate).forEach(([key, v]) => {
+                if (key.startsWith(monthPrefix)) { anz += v.anz; rest += v.rest; prov += v.prov; }
+              });
+              if (anz === 0 && rest === 0 && prov === 0) return null;
+              return (
+                <div style={{ marginTop: '10px', padding: '8px', background: 'var(--surface2)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text2)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.04em' }}>
+                    {MONTHS[calendarDate.getMonth()]} — Gesamt
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '8px', color: 'var(--accent)', fontWeight: '700', textTransform: 'uppercase' }}>Anzahlung</div>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--accent)', fontFamily: "'JetBrains Mono', monospace" }}>{anz.toFixed(0)} €</div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '8px', color: '#f59e0b', fontWeight: '700', textTransform: 'uppercase' }}>Restzahlung</div>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#f59e0b', fontFamily: "'JetBrains Mono', monospace" }}>{rest.toFixed(0)} €</div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '8px', color: '#818cf8', fontWeight: '700', textTransform: 'uppercase' }}>Provision</div>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#818cf8', fontFamily: "'JetBrains Mono', monospace" }}>{prov.toFixed(0)} €</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            const key = formatDateISO(selectedCalDay);
+            const d = zpByDate[key] || { anz: 0, rest: 0, prov: 0 };
+            return (
+              <div style={{ marginTop: '10px', padding: '8px', background: 'rgba(0,184,122,0.08)', borderRadius: '6px', border: '1px solid var(--accent)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ fontSize: '9px', color: 'var(--accent)', fontWeight: '700', letterSpacing: '0.04em' }}>
+                    {selectedCalDay.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  </div>
+                  <button onClick={() => setSelectedCalDay(null)} style={{ fontSize: '9px', background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', padding: 0 }}>× Schließen</button>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '8px', color: 'var(--accent)', fontWeight: '700', textTransform: 'uppercase' }}>Anzahlung</div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: d.anz > 0 ? 'var(--accent)' : 'var(--text2)', fontFamily: "'JetBrains Mono', monospace" }}>{d.anz > 0 ? d.anz.toFixed(0) + ' €' : '—'}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '8px', color: '#f59e0b', fontWeight: '700', textTransform: 'uppercase' }}>Restzahlung</div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: d.rest > 0 ? '#f59e0b' : 'var(--text2)', fontFamily: "'JetBrains Mono', monospace" }}>{d.rest > 0 ? d.rest.toFixed(0) + ' €' : '—'}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '8px', color: '#818cf8', fontWeight: '700', textTransform: 'uppercase' }}>Provision</div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: d.prov > 0 ? '#818cf8' : 'var(--text2)', fontFamily: "'JetBrains Mono', monospace" }}>{d.prov > 0 ? d.prov.toFixed(0) + ' €' : '—'}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

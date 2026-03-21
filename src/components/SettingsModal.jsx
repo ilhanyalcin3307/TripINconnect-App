@@ -15,6 +15,12 @@ function SettingsModal({ onClose, showToast, userEmail }) {
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(false);
 
+  // Buchungssystem states
+  const [buchungssystem, setBuchungssystem] = useState('myJACK');
+  const [apiKey, setApiKey] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [lastSync, setLastSync] = useState(null);
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -493,6 +499,94 @@ function SettingsModal({ onClose, showToast, userEmail }) {
                     }}>
                       💡 Sicherungen älter als 7 Tage werden automatisch gelöscht
                     </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ height: '1px', background: 'var(--border)', margin: '24px 0' }}></div>
+
+              {/* Buchungssystem */}
+              <div className="settings-section">
+                <div className="settings-label">
+                  <span style={{ fontSize: '16px', fontWeight: '700' }}>🔌 Buchungssystem</span>
+                </div>
+                <div className="settings-description">
+                  Verbinden Sie TripINconnect mit Ihrem Buchungssystem, um Reservierungen zu synchronisieren.
+                </div>
+
+                <div className="form-group" style={{ marginTop: '16px' }}>
+                  <label className="form-label">System</label>
+                  <select
+                    className="form-input"
+                    value={buchungssystem}
+                    onChange={(e) => { setBuchungssystem(e.target.value); setConnectionStatus('disconnected'); setLastSync(null); }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <option value="myJACK">myJACK</option>
+                    <option value="NEO">NEO</option>
+                    <option value="Manuel">Manuel</option>
+                  </select>
+                </div>
+
+                {buchungssystem !== 'Manuel' && (
+                  <>
+                    <div className="form-group" style={{ marginTop: '12px' }}>
+                      <label className="form-label">API-Schlüssel</label>
+                      <input
+                        className="form-input"
+                        type="password"
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="API-Schlüssel eingeben…"
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    <div style={{ marginTop: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => showToast('⚠️ API-Verbindung noch nicht implementiert')}
+                        disabled={!apiKey.trim()}
+                        style={{ flexShrink: 0 }}
+                      >
+                        🔗 Verbinden
+                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          background: connectionStatus === 'connected' ? '#22c55e' : '#ef4444',
+                          flexShrink: 0
+                        }} />
+                        <span style={{ fontSize: '13px', color: 'var(--text2)' }}>
+                          {connectionStatus === 'connected' ? 'Verbunden' : 'Getrennt'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '10px' }}>
+                      Letzte Synchronisierung:{' '}
+                      <span style={{ color: 'var(--text2)' }}>
+                        {lastSync ? new Date(lastSync).toLocaleString('de-DE') : '—'}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                {buchungssystem === 'Manuel' && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '12px 14px',
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: 'var(--text3)',
+                    lineHeight: '1.5'
+                  }}>
+                    Im manuellen Modus werden Reservierungen ausschließlich über den Import oder manuellen Eintrag erfasst. Keine API-Verbindung erforderlich.
                   </div>
                 )}
               </div>

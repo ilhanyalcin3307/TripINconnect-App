@@ -89,17 +89,27 @@ export default function LoginScreen() {
         }}>
           {/* Tab Başlıklar */}
           <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'var(--bg, #0d0f12)', borderRadius: '10px', padding: '4px' }}>
-            {[{ key: 'login', label: 'Anmelden' }, { key: 'register', label: 'Registrieren' }].map(({ key, label }) => (
-              <button key={key} onClick={() => { setMode(key); setError(''); setInfo(''); }}
-                style={{
-                  flex: 1, padding: '7px 0', border: 'none', borderRadius: '8px', cursor: 'pointer',
-                  fontWeight: '600', fontSize: '13px', transition: 'all 0.15s',
-                  background: mode === key ? '#3b82f6' : 'transparent',
-                  color: mode === key ? '#fff' : 'var(--text2, #64748b)'
-                }}>
-                {label}
-              </button>
-            ))}
+            {/* Anmelden tab */}
+            <button onClick={() => { setMode('login'); setError(''); setInfo(''); }}
+              style={{
+                flex: 1, padding: '7px 0', border: 'none', borderRadius: '8px', cursor: 'pointer',
+                fontWeight: '600', fontSize: '13px', transition: 'all 0.15s',
+                background: mode === 'login' ? '#3b82f6' : 'transparent',
+                color: mode === 'login' ? '#fff' : 'var(--text2, #64748b)'
+              }}>
+              Anmelden
+            </button>
+            {/* Registrieren tab — devre dışı */}
+            <button disabled title="Registrierung derzeit nicht möglich. Bitte wenden Sie sich an den Administrator."
+              style={{
+                flex: 1, padding: '7px 0', border: 'none', borderRadius: '8px', cursor: 'not-allowed',
+                fontWeight: '600', fontSize: '13px',
+                background: 'transparent',
+                color: '#334155',
+                opacity: 0.45
+              }}>
+              Registrieren
+            </button>
           </div>
 
           {mode === 'reset' && (

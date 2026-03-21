@@ -23,7 +23,7 @@ function ImportModal({ onClose, onSave, showToast }) {
           const lines = text.split('\n').filter(line => line.trim());
           
           if (lines.length < 2) {
-            showToast('⚠️ Dosyada yeterli veri yok');
+            showToast('⚠️ Nicht genügend Daten in der Datei');
             return;
           }
 
@@ -68,17 +68,17 @@ function ImportModal({ onClose, onSave, showToast }) {
             .filter(Boolean);
 
           if (expenses.length === 0) {
-            showToast('⚠️ Geçerli harcama bulunamadı');
+            showToast('⚠️ Keine gültigen Ausgaben gefunden');
             return;
           }
 
           setParsedData(expenses);
           setStep('preview');
-          showToast(`✓ ${expenses.length} harcama bulundu`);
+          showToast(`✓ ${expenses.length} Ausgaben gefunden`);
 
         } catch (err) {
           console.error('Parse error:', err);
-          showToast('⚠️ Dosya okunamadı: ' + err.message);
+          showToast('⚠️ Datei konnte nicht gelesen werden: ' + err.message);
         }
       };
 
@@ -86,7 +86,7 @@ function ImportModal({ onClose, onSave, showToast }) {
 
     } catch (err) {
       console.error('File read error:', err);
-      showToast('⚠️ Dosya yüklenemedi');
+      showToast('⚠️ Datei konnte nicht hochgeladen werden');
     }
   };
 
@@ -147,7 +147,7 @@ function ImportModal({ onClose, onSave, showToast }) {
       
     } catch (err) {
       console.error('Save error:', err);
-      showToast('⚠️ Kayıt sırasında hata oluştu');
+      showToast('⚠️ Fehler beim Speichern');
     }
   };
 
@@ -174,14 +174,14 @@ function ImportModal({ onClose, onSave, showToast }) {
               <div className="drop-sub">Als CSV aus Excel speichern und hochladen</div>
               <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '16px', textAlign: 'left', maxWidth: '400px' }}>
                 <strong>Erwartete Spalten:</strong><br/>
-                • Tarih (Pflichtfeld)<br/>
-                • Fiş No<br/>
-                • Açıklama<br/>
-                • Tutar (Pflichtfeld)<br/>
-                • Para Birimi<br/>
-                • Kategori<br/>
-                • Otel<br/>
-                • Not
+                • Datum (Pflichtfeld)<br/>
+                • Beleg-Nr.<br/>
+                • Beschreibung<br/>
+                • Betrag (Pflichtfeld)<br/>
+                • Währung<br/>
+                • Kategorie<br/>
+                • Hotel<br/>
+                • Notiz
               </div>
             </div>
           )}
@@ -191,7 +191,7 @@ function ImportModal({ onClose, onSave, showToast }) {
               <div style={{ marginBottom: '16px', padding: '12px', background: 'var(--bg2)', borderRadius: '8px' }}>
                 <strong>📄 {fileName}</strong><br/>
                 <span style={{ fontSize: '13px', color: 'var(--text2)' }}>
-                  {parsedData.length} harcama bulundu • Toplam: {parsedData.reduce((sum, e) => sum + e.tutar, 0).toFixed(2)} EUR
+                  {parsedData.length} Ausgaben gefunden • Gesamt: {parsedData.reduce((sum, e) => sum + e.tutar, 0).toFixed(2)} EUR
                 </span>
               </div>
 
@@ -199,12 +199,12 @@ function ImportModal({ onClose, onSave, showToast }) {
                 <table style={{ width: '100%', fontSize: '13px' }}>
                   <thead style={{ position: 'sticky', top: 0, background: 'var(--bg2)', borderBottom: '2px solid var(--border)' }}>
                     <tr>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Tarih</th>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Fiş No</th>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Açıklama</th>
-                      <th style={{ padding: '10px', textAlign: 'right' }}>Tutar</th>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Para</th>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Kategori</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Datum</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Beleg-Nr.</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Beschreibung</th>
+                      <th style={{ padding: '10px', textAlign: 'right' }}>Betrag</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Währung</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Kategorie</th>
                     </tr>
                   </thead>
                   <tbody>

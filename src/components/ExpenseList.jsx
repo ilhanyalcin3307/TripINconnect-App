@@ -201,11 +201,11 @@ function ExpenseList({ expenses, onDelete, onEdit, onScanExpense, onAddExpense, 
     
     const fullName = profile.firstName && profile.lastName 
       ? `${profile.firstName} ${profile.lastName}`.toUpperCase()
-      : 'ILHAN YALCIN';
+      : '';
     
-    const companyName = profile.companyName || 'Anex Tour Austria GmbH';
-    const iban = profile.iban || 'AT92 2011 1850 8467 3902';
-    const bic = profile.bic || 'GIBAATWWXXX';
+    const companyName = profile.companyName || '';
+    const iban = profile.iban || '';
+    const bic = profile.bic || '';
 
     // Ay ve yıl bilgisi
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
@@ -483,11 +483,11 @@ function ExpenseList({ expenses, onDelete, onEdit, onScanExpense, onAddExpense, 
       
       const fullName = profile.firstName && profile.lastName 
         ? `${profile.firstName} ${profile.lastName}`.toUpperCase()
-        : 'ILHAN YALCIN';
+        : '';
       
-      const companyName = profile.companyName || 'Anex Tour Austria GmbH';
-      const iban = profile.iban || 'AT92 2011 1850 8467 3902';
-      const bic = profile.bic || 'GIBAATWWXXX';
+      const companyName = profile.companyName || '';
+      const iban = profile.iban || '';
+      const bic = profile.bic || '';
 
       // Ay ve yıl bilgisi
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 

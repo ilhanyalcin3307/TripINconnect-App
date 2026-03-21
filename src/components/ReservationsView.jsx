@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { calcProvisionDates, getPaymentDateColor } from '../lib/provisionUtils';
 import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -27,23 +28,27 @@ const MONTHS = [
 ];
 
 const COLUMN_DEFINITIONS = [
-  { key: 'vgNr', label: 'Vorg.-Nr.', width: '6%' },
-  { key: 'name', label: 'Name', width: '10%' },
-  { key: 'abreise', label: 'Abreise', width: '7%' },
-  { key: 'ruckreise', label: 'Rückreise', width: '7%' },
-  { key: 'ziel', label: 'Ziel', width: '8%' },
-  { key: 'gebuchteVA', label: 'Veranst.', width: '8%' },
-  { key: 'buchung', label: 'Buchung', width: '7%' },
-  { key: 'reisepreis', label: 'Preis', width: '7%' },
-  { key: 'provisionRate', label: 'Prov %', width: '6%' },
-  { key: 'netto', label: 'Netto', width: '6%' },
-  { key: 'provisionAmount', label: 'Prov €', width: '6%' },
-  { key: 'kdOffen', label: 'Offen', width: '6%' },
-  { key: 'restAnVA', label: 'Rest Ver.', width: '8%' },
-  { key: 'reisebeschreibung', label: 'Reisebeschr.', width: '12%' }
+  { key: 'vgNr',             label: 'Vorg.-Nr.',    width: 80  },
+  { key: 'name',             label: 'Name',         width: 110 },
+  { key: 'abreise',          label: 'Abreise',      width: 68  },
+  { key: 'ruckreise',        label: 'Rückreise',    width: 68  },
+  { key: 'ziel',             label: 'Ziel',         width: 110 },
+  { key: 'gebuchteVA',       label: 'Veranst.',     width: 72  },
+  { key: 'buchung',          label: 'Buchung',      width: 68  },
+  { key: 'reisepreis',       label: 'Preis',        width: 90  },
+  { key: 'provisionRate',    label: 'Prov %',       width: 60  },
+  { key: 'netto',            label: 'Netto',        width: 80  },
+  { key: 'provisionAmount',  label: 'Prov €',       width: 80  },
+  { key: 'provAnzDatum',     label: 'Anz. Datum',   width: 68  },
+  { key: 'provAnzBetrag',    label: 'Anz. Betrag',  width: 72  },
+  { key: 'provRestDatum',    label: 'Rest Datum',   width: 68  },
+  { key: 'provRestBetrag',   label: 'Rest Betrag',  width: 72  },
+  { key: 'kdOffen',          label: 'Offen',        width: 80  },
+  { key: 'restAnVA',         label: 'Rest Ver.',    width: 90  },
+  { key: 'reisebeschreibung',label: 'Reisebeschr.', width: 160 }
 ];
 
-function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservation, exchangeRates, agenturData = {}, categories = [] }) {
+function ReservationsView({ reservations = [], onDelete, onBulkDelete, onEdit, onAddReservation, onBulkAddReservations, exchangeRates, agenturData = {}, categories = [] }) {
   const [selectedYear, setSelectedYear] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -55,6 +60,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
   const [ocrStatus, setOcrStatus] = useState('');
   const [extractedData, setExtractedData] = useState(null);
   const [rawOcrText, setRawOcrText] = useState('');
+  const [showRawOcr, setShowRawOcr] = useState(false);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   
   // Excel Import States
@@ -111,9 +117,10 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
   const [selectedIds, setSelectedIds] = useState([]);
   
   // Sütun görünürlük state - başlangıçta hepsi seçili
-  const [visibleColumns, setVisibleColumns] = useState(() => 
-    COLUMN_DEFINITIONS.reduce((acc, col) => ({ ...acc, [col.key]: true }), {})
-  );
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const hidden = new Set(['kdOffen', 'restAnVA', 'reisebeschreibung']);
+    return COLUMN_DEFINITIONS.reduce((acc, col) => ({ ...acc, [col.key]: !hidden.has(col.key) }), {});
+  });
   
   // Form state
   const [formData, setFormData] = useState({
@@ -398,15 +405,14 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
         const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
         
         for (let i = 0; i < data.length; i += 4) {
-          // RGB kanallarına kontrast uygula
-          data[i] = factor * (data[i] - 128) + 128;     // R
-          data[i + 1] = factor * (data[i + 1] - 128) + 128; // G
-          data[i + 2] = factor * (data[i + 2] - 128) + 128; // B
-          
-          // Değerleri sınırla
-          data[i] = Math.max(0, Math.min(255, data[i]));
-          data[i + 1] = Math.max(0, Math.min(255, data[i + 1]));
-          data[i + 2] = Math.max(0, Math.min(255, data[i + 2]));
+          // Önce gri tonlamaya çevir (taranmış belgelerde OCR kalitesini artırır)
+          const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+          data[i] = data[i + 1] = data[i + 2] = gray;
+
+          // Sonra kontrast uygula
+          data[i]     = Math.max(0, Math.min(255, factor * (data[i]     - 128) + 128));
+          data[i + 1] = Math.max(0, Math.min(255, factor * (data[i + 1] - 128) + 128));
+          data[i + 2] = Math.max(0, Math.min(255, factor * (data[i + 2] - 128) + 128));
         }
         
         ctx.putImageData(imageData, 0, 0);
@@ -458,23 +464,46 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
     };
 
     // ====== AUFTRAGSNUMMER / VORGANGSNUMMER ======
+    // Yardımcı: boşlukla ayrılmış rakam dizisini birleştir ("1191 7467" → "11917467")
+    const joinSplitNumber = (str) => str.replace(/[\s\t]+/g, '');
+
     const vgKeywords = [
       'auftragsnummer', 'vorgangsnummer', 'vorgangs nr', 'vorgangs-nr',
-      'auftrags nr', 'auftrags-nr', 'vg nr', 'vg-nr', 'vorgang'
+      'auftrags nr', 'auftrags-nr', 'vg nr', 'vg-nr', 'vorgang nr', 'vorgang'
     ];
-    vgKeywords.forEach(keyword => {
-      if (!data.vgNr) {
-        // Esnek pattern: keyword + (opsiyonel : veya boşluk) + sayı
-        const regex = new RegExp(keyword + '\\s*:?\\s*([0-9]+)', 'gi');
-        const match = text.match(regex);
-        if (match) {
-          const numMatch = match[0].match(/\d+/);
-          if (numMatch) {
-            data.vgNr = 'VG-' + numMatch[0];
-          }
-        }
+
+    for (const keyword of vgKeywords) {
+      if (data.vgNr) break;
+
+      // Adım 1: keyword'den sonra 1. VEYA 2. satırda 7+ haneli sayı
+      // ANEX formatı: "Vorgangsnummer ..." → "Agenturnummer 001338" → "11917467 ..."
+      const nextTwoLinesRegex = new RegExp(
+        keyword + '[^\\n]*\\n[^\\n]*\\n?\\s*([\\d][\\d \\t]{5,11}[\\d])',
+        'gi'
+      );
+      for (const m of text.matchAll(nextTwoLinesRegex)) {
+        const joined = joinSplitNumber(m[1]);
+        if (/^\d{7,12}$/.test(joined)) { data.vgNr = 'VG-' + joined; break; }
       }
-    });
+      if (data.vgNr) break;
+
+      // Adım 2: keyword'den en fazla 150 karakter içinde 7+ haneli sayı
+      // (6 haneli Agenturnummer'ı es geçmek için min 7)
+      const sameLineRegex = new RegExp(keyword + '[\\s\\S]{0,150}?([\\d][\\d \\t]{5,11}[\\d])', 'gi');
+      for (const m of text.matchAll(sameLineRegex)) {
+        const joined = joinSplitNumber(m[1]);
+        if (/^\d{7,12}$/.test(joined)) { data.vgNr = 'VG-' + joined; break; }
+      }
+    }
+
+    // Fallback: dokümanın ilk 1000 karakterinde en az 7 haneli standalone sayı (büyükten küçüğe)
+    if (!data.vgNr) {
+      const headerText = text.substring(0, 1000);
+      const bigNums = [...headerText.matchAll(/\b(\d{7,10})\b/g)]
+        .map(m => m[1])
+        .sort((a, b) => b.length - a.length || b.localeCompare(a));
+      if (bigNums.length > 0) data.vgNr = 'VG-' + bigNums[0];
+    }
     console.log('📄 VG-Nr:', data.vgNr || '❌ Bulunamadı');
 
     // ====== KUNDENNUMMER ======
@@ -493,13 +522,61 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
 
     // ====== NAME (Çoklu Format Desteği) ======
     let nameFound = false;
-    
+
+    // Şehir / havalimanı / genel Almanca kelime blacklisti
+    const nameBlacklist = new Set([
+      'HINFLUG','RUCKFLUG','RUECKFLUG','EINFLUG','RÜCKREISE','ANTALYA','DUESSELDORF','MUENCHEN',
+      'ANREISE','DATUM','SUMME','GESAMT','HOTEL','FLUG','BERLIN','KOELN','COLOGNE',
+      'FRANKFURT','HAMBURG','ZURICH','WIEN','ISTANBUL','BODRUM','ALANYA','SIDE','FETHIYE',
+      'EURO','PREIS','REISE','SEHR','GEEHRTE','GEEHRTER','BUCHUNG','STRECKE',
+      'NACHT','NÄCHTE','ZIMMER','PERSON','ERWACHSENE','KIND','INFANT',
+      'LEISTUNG','BETRAG','RECHNUNG','BESTÄTIGUNG','KOPIE','AUFTRETEN',
+      'STEHEN','LIEGEN','WERDEN','HABEN','SEIN','GEHEN','KOMMEN','FAHREN',
+      'REISEN','BUCHEN','ZAHLEN','INFORMIEREN','BESTÄTIGEN','VORLEGEN',
+      'UNTERSCHRIFT','STEMPEL','HANDY','EMAIL','TELEFON','KONTAKT',
+      'BEMERKUNGEN','KUNDENNAME','KUNDENWUNSCH','ANSPRECHPARTNER',
+      'PAUSCHALE','PAUSCHALREISE','LEISTUNGSZEIT','INKLUSIVLEISTUNGEN',
+      'SEITE','MUSTER','KOPIEREN','ORIGINAL','DRUCK','AUSGESTELLT',
+      'MUENCHEN','HANNOVER','STUTTGART','DORTMUND','ESSEN',
+      'DRESDEN','NUERNBERG','BREMEN','DUISBURG','BOCHUM',
+      // Uçuş bilgileri (ANEX tablo satırları)
+      'GEPÄCK','GEPAECK','FLUGNR','FLUGZEITEN','SELECTUM','INCLUSIVE',
+      'ULTRA','LAKEHOUSE','SECOND','FLOOR','ERWACHSENE'
+    ]);
+
+    // Yardımcı: All-caps kelimeyi Title Case'e çevir
+    const toTitleCase = (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    // Yardımcı: kelime geçerli isim adayı mı?
+    const isValidNamePart = (w) => {
+      if (nameBlacklist.has(w.toUpperCase())) return false;
+      if (w.length < 2 || w.length > 20) return false;
+      // Saf Almanca fiil/isim sonu kontrolü (-EN, -UNG, -KEIT, -HEIT, -SCHAFT sonuyla biten ALL-CAPS)
+      if (/^[A-ZÄÖÜ]+$/.test(w) && /(KEIT|HEIT|SCHAFT|IEREN|STUNG)$/.test(w)) return false;
+      return true;
+    };
+
+    // Pattern 0: Yolcu listesi
+    // ANEX formatı: "01 |H |EIDAYET TABAK [EINFLUG..." — | ve tek harf tip koduna toleranslı
+    // Normal format: "01 HIDAYET TABAR 34"
+    // Regex: satır no → opsiyonel pipe+tek-harf tip kodu → AD → SOYAD (köşeli/dikey çubuk görmezden gelinir)
+    const passengerRowPattern = /(?:^|\n|\r)\s*\d{1,2}[\s|[\]]+(?:[A-ZÄÖÜ][\s|\]\[]+)?([A-ZÄÖÜ]{2,20})\s+([A-ZÄÖÜ]{2,20})/gm;
+    for (const m of text.matchAll(passengerRowPattern)) {
+      const [, first, last] = m;
+      if (isValidNamePart(first) && isValidNamePart(last)) {
+        data.name = toTitleCase(first) + ' ' + toTitleCase(last);
+        nameFound = true;
+        break;
+      }
+    }
+
     // Pattern 1: Herr/Frau + Ad Soyad
-    const namePattern1 = /(herr|frau|mr|mrs|ms)\s+([A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)*)/gi;
-    const nameMatches1 = [...text.matchAll(namePattern1)];
-    if (nameMatches1.length > 0) {
-      data.name = nameMatches1[0][1] + ' ' + nameMatches1[0][2];
-      nameFound = true;
+    if (!nameFound) {
+      const namePattern1 = /(?:sehr geehrte[rn]?\s+)?(?:herr|frau|mr|mrs|ms)\s+([A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)*)/gi;
+      for (const m of text.matchAll(namePattern1)) {
+        data.name = m[1];
+        nameFound = true;
+        break;
+      }
     }
     
     // Pattern 2: SOYAD, AD (virgüllü format) → AD SOYAD'a çevir
@@ -516,21 +593,14 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
       }
     }
     
-    // Pattern 3: BÜYÜK HARF AD SOYAD (Herr/Frau olmadan)
+    // Pattern 3: BÜYÜK HARF AD SOYAD (Herr/Frau olmadan) — son çare
     if (!nameFound) {
-      const namePattern3 = /\b([A-ZÄÖÜ]{3,})\s+([A-ZÄÖÜ]{3,})\b/g;
-      const nameMatches3 = [...text.matchAll(namePattern3)];
-      for (const match of nameMatches3) {
+      const namePattern3 = /\b([A-ZÄÖÜ]{3,20})\s+([A-ZÄÖÜ]{3,20})\b/g;
+      for (const match of text.matchAll(namePattern3)) {
         const firstname = match[1];
         const lastname = match[2];
-        // Blacklist: Form keyword'leri değil (HINFLUG, ANTALYA, DUESSELDORF vb.)
-        const blacklistNames = [
-          'HINFLUG', 'RUCKFLUG', 'RÜCKREISE', 'ANTALYA', 'DUESSELDORF', 
-          'ANREISE', 'DATUM', 'SUMME', 'GESAMT', 'HOTEL', 'FLUG'
-        ];
-        if (!blacklistNames.includes(firstname) && !blacklistNames.includes(lastname)) {
-          data.name = firstname.charAt(0) + firstname.slice(1).toLowerCase() + ' ' + 
-                      lastname.charAt(0) + lastname.slice(1).toLowerCase();
+        if (isValidNamePart(firstname) && isValidNamePart(lastname)) {
+          data.name = toTitleCase(firstname) + ' ' + toTitleCase(lastname);
           nameFound = true;
           break;
         }
@@ -550,8 +620,8 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
       return y;
     };
     
-    // Pattern 1: "vom DD.MM.YY bis DD.MM.YY" formatı
-    const vomBisPattern = /vom\s+(\d{1,2})\.(\d{1,2})\.(\d{2,4})\s+bis\s+(\d{1,2})\.(\d{1,2})\.(\d{2,4})/gi;
+    // Pattern 1: "vom/OM/VOM DD.MM.YY bis BIS DD.MM.YY" — ANEX: OCR bazen V harfini atlar
+    const vomBisPattern = /(?:v?om|from)\s+(\d{1,2})\.(\d{1,2})\.(\d{2,4})\s+(?:bis|to|BIS|TO)\s+(\d{1,2})\.(\d{1,2})\.(\d{2,4})/gi;
     const vomBisMatch = text.match(vomBisPattern);
     if (vomBisMatch) {
       const dates = vomBisMatch[0].match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/g);
@@ -578,9 +648,9 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
       }
     }
     
-    // Pattern 3: Reisedatum / Anreise / Hinreise aynı satırda
+    // Pattern 3: Reisedatum / Anreise / Hinreise / Leistungsbeginn aynı satırda
     if (!data.abreise) {
-      const anreiseKeywords = ['reisedatum', 'anreise', 'hinreise', 'abreise'];
+      const anreiseKeywords = ['reisedatum', 'anreise', 'hinreise', 'abreise', 'leistungsbeginn', 'reisebeginn'];
       anreiseKeywords.forEach(keyword => {
         if (!data.abreise) {
           const pattern = new RegExp(keyword + '[:\\s]*[~-]*\\s*(\\d{1,2})\\.(\\d{1,2})\\.(\\d{2,4})', 'gi');
@@ -633,10 +703,27 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
       }
     }
 
-    // Buchungsdatum (daha esnek - "Ersetzt Rechnung vom" veya "Datum" formatı)
+    // Buchungsdatum (daha esnek - tüm yaygın formatlar)
     const buchungKeywords = [
+      // ===== Yüksek Öncelik (açık buchung etiketleri) =====
       'buchungsdatum', 'buchung vom', 'erwartete buchung vom', 
-      'gebucht am', 'buchung am', 'rechnung vom', 'ersetzt rechnung vom'
+      'gebucht am', 'buchung am',
+      // ===== Fatura / Onay belgeleri =====
+      'rechnung vom', 'ersetzt rechnung vom',
+      'rechnungsdatum', 'rechnungstag',
+      // ===== Veranstalter formatları =====
+      'leistungsdatum angeboten',  // ANEX Tour: "Leistungsdatum angeboten: 19.02.2026 14:42"
+      'leistungsdatum',            // ANEX kısaltılmış OCR
+      'ausgestellt am',            // ITS, Neckermann
+      'erstellungsdatum', 'ausstellungsdatum',
+      'angeboten am', 'eingegangen am', 'bearbeitet am',
+      'erstellt am', 'ausgefertigt am',
+      // ===== Son çare: diğer VA'larda farklı label olabilir =====
+      'angeboten',
+      // ===== En son çare: Druckdatum (baskı tarihi) =====
+      // Form üzerinde açık buchungsdatum yoksa en yakın tarih bilgisi budur
+      'druckdatum', 'druckdatum:',
+      'ausgedruckt am', 'gedruckt am'
     ];
     
     buchungKeywords.forEach(keyword => {
@@ -653,23 +740,21 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
       }
     });
     
-    // Fallback: "Datum" formatı (iki nokta üst üste yok, ama Druckdatum değil)
+    // Fallback: herhangi bir "...datum" etiketiyle tarih (druckdatum dahil, artık engel yok)
     if (!data.buchung) {
-      const datumPattern = /(?<!druck)datum[:\s]+(\d{1,2})\.(\d{1,2})\.(\d{2,4})/gi;
+      const datumPattern = /\b\w*datum[:\s]+(\d{1,2})\.(\d{1,2})\.(\d{2,4})/gi;
       const datumMatches = [...text.matchAll(datumPattern)];
-      if (datumMatches.length > 0) {
-        datumMatches.forEach(match => {
-          const d = match[1];
-          const m = match[2];
-          const y = match[3];
-          const foundDate = `${expandYear(y)}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-          
-          // Abreise veya Rückreise ile aynı değilse al
-          if (foundDate !== data.abreise && foundDate !== data.ruckreise) {
-            data.buchung = foundDate;
-          }
-        });
-      }
+      datumMatches.forEach(match => {
+        if (data.buchung) return;
+        const d = match[1];
+        const m = match[2];
+        const y = match[3];
+        const foundDate = `${expandYear(y)}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        // Abreise veya Rückreise ile aynı değilse al
+        if (foundDate !== data.abreise && foundDate !== data.ruckreise) {
+          data.buchung = foundDate;
+        }
+      });
     }
 
     console.log('📅 Abreise:', data.abreise || '❌ Bulunamadı');
@@ -731,26 +816,62 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
     // ====== REISEPREIS (Leistungspreis / Gesamtpreis) ======
     const priceKeywords = [
       'leistungspreis', 'gesamtpreis', 'reisepreis', 'pauschale', 
-      'total', 'summe', 'gesamt'
+      'total', 'summe', 'gesamt', 'rechnungsbetrag', 'gesamtbetrag'
     ];
     const pricesFound = [];
     
     priceKeywords.forEach(keyword => {
-      // Pattern 1: keyword: 7.925,00 EUR (Almanca format)
-      const regex1 = new RegExp(keyword + '[\\s:]*[~-]*\\s*(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s*EUR', 'gi');
+      // Pattern 1: keyword + "3.127,00" veya "3.127,00 EUR" (EUR opsiyonel)
+      const regex1 = new RegExp(keyword + '[\\s:()EUR]*[~-]*\\s*(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s*(?:EUR)?', 'gi');
       const matches1 = [...text.matchAll(regex1)];
       matches1.forEach(m => {
         const priceStr = m[1].replace(/\./g, '').replace(',', '.');
         pricesFound.push(parseFloat(priceStr));
       });
       
-      // Pattern 2: GESAMT: 3100.00 (nokta ile ondalık)
+      // Pattern 2: keyword + "EUR 3.127,00" (EUR prefix)
+      const regex1b = new RegExp(keyword + '[\\s:]*[~-]*\\s*EUR\\s*(\\d{1,3}(?:\\.\\d{3})*,\\d{2})', 'gi');
+      const matches1b = [...text.matchAll(regex1b)];
+      matches1b.forEach(m => {
+        const priceStr = m[1].replace(/\./g, '').replace(',', '.');
+        pricesFound.push(parseFloat(priceStr));
+      });
+
+      // Pattern 3: GESAMT: 3100.00 (nokta ile ondalık)
       const regex2 = new RegExp(keyword + '[\\s:]*[~-]*\\s*(\\d{1,5}\\.\\d{2})', 'gi');
       const matches2 = [...text.matchAll(regex2)];
       matches2.forEach(m => {
         pricesFound.push(parseFloat(m[1]));
       });
     });
+
+    // Fallback A: "EUR 3.127,00" veya "EUR 3127,00" — EUR başında, keyword olmadan
+    const eurPrefixPattern = /EUR\s+(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
+    [...text.matchAll(eurPrefixPattern)].forEach(m => {
+      const priceStr = m[1].replace(/\./g, '').replace(',', '.');
+      const price = parseFloat(priceStr);
+      if (price >= 100 && price <= 99999) pricesFound.push(price);
+    });
+
+    // Fallback B: Almanca format (3.127,08) – tüm belgede
+    if (pricesFound.length === 0) {
+      const allAmountsDE = [...text.matchAll(/\b(\d{1,3}(?:\.\d{3})*),(\d{2})\b/g)];
+      allAmountsDE.forEach(m => {
+        const price = parseFloat(m[1].replace(/\./g, '') + '.' + m[2]);
+        if (price >= 100 && price <= 99999) pricesFound.push(price);
+      });
+    }
+
+    // Fallback C: US / noktalı decimal format — 3127.00, 3,127.00, 10000.00 vb.
+    if (pricesFound.length === 0) {
+      // \d{1,3}(?:,\d{3})* sadece 1-3 haneyi kapsıyor, bu yüzden 4+ hanelik
+      // sayıları da yakalamak için \d{1,7} alternatifi ekliyoruz
+      const allAmountsUS = [...text.matchAll(/\b(\d{1,3}(?:,\d{3})+\.\d{2}|\d{4,7}\.\d{2})\b/g)];
+      allAmountsUS.forEach(m => {
+        const price = parseFloat(m[1].replace(/,/g, ''));
+        if (price >= 100 && price <= 99999) pricesFound.push(price);
+      });
+    }
 
     if (pricesFound.length > 0) {
       // En büyük fiyatı al (genelde genel toplam)
@@ -1016,7 +1137,11 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
     }
     
     if (window.confirm(`Sind Sie sicher, dass Sie ${selectedIds.length} Reservierungen löschen möchten?`)) {
-      selectedIds.forEach(id => onDelete(id));
+      if (onBulkDelete) {
+        onBulkDelete(selectedIds);
+      } else {
+        selectedIds.forEach(id => onDelete(id));
+      }
       setSelectedIds([]);
     }
   };
@@ -1135,7 +1260,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
     const date = new Date(dateString);
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
+    const year = String(date.getFullYear()).slice(-2);
     return `${day}.${month}.${year}`;
   };
 
@@ -1296,24 +1421,24 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
     const mapping = {};
     
     const matchRules = {
-      vgNr: ['vorg', 'vg', 'vorgang', 'nummer', 'no', 'id', 'ref'],
-      name: ['name', 'isim', 'ad', 'kunde', 'customer', 'müşteri'],
-      abreise: ['abreise', 'anreise', 'başlangıç', 'start', 'departure', 'gidiş'],
-      ruckreise: ['ruckreise', 'rückreise', 'dönüş', 'bitiş', 'return', 'end'],
-      ziel: ['ziel', 'hedef', 'destination', 'ülke', 'country', 'yer'],
-      gebuchteVA: ['veranst', 'gebuchte', 'acentesi', 'agency', 'operator'],
-      buchung: ['buchung', 'kayıt', 'booking', 'date', 'tarih'],
-      reisepreis: ['preis', 'price', 'fiyat', 'tutar', 'amount', 'reisepreis'],
-      currency: ['währung', 'currency', 'para', 'birim', 'doviz'],
-      provisionRate: ['prov', 'provision', 'komisyon', 'commission', '%'],
-      netto: ['netto', 'net'],
-      kdOffen: ['offen', 'kalan', 'remaining', 'balance', 'açık'],
-      restAnVA: ['rest', 'kalan', 'bakiye', 'ver'],
-      reisebeschreibung: ['beschreibung', 'description', 'açıklama', 'notlar', 'notes']
+      vgNr: ['vorg', 'vg-nr', 'vg nr', 'vorgang', 'nummer', 'buchungsnr', 'buchungs-nr', 'reservierung', 'reservation no', 'booking no', 'booking ref', 'ref.nr', 'ref nr', 'no.', 'id'],
+      name: ['name', 'gast', 'gäste', 'gaeste', 'guest', 'isim', 'ad soyad', 'müşteri', 'kunde', 'customer', 'passenger', 'reisende'],
+      abreise: ['abreise', 'anreise', 'check-in', 'checkin', 'check in', 'arrival', 'abflug', 'hinflug', 'başlangıç', 'gidiş', 'departure', 'start', 'von datum', 'von', 'from date'],
+      ruckreise: ['rückreise', 'ruckreise', 'check-out', 'checkout', 'check out', 'departure', 'rückflug', 'dönüş', 'bitiş', 'return', 'end', 'bis datum', 'bis', 'to date'],
+      ziel: ['ziel', 'destination', 'hotel', 'resort', 'region', 'hedef', 'ülke', 'country', 'location', 'ort'],
+      gebuchteVA: ['veranst', 'gebuchte', 'va', 'operator', 'tour op', 'veranstalter', 'agentur', 'agency', 'acentesi', 'reiseveranstalter'],
+      buchung: ['buchung', 'buchungsdatum', 'booking date', 'kayıt tarihi', 'created', 'eingabe', 'erfasst'],
+      reisepreis: ['preis', 'reisepreis', 'gesamtpreis', 'price', 'total', 'betrag', 'fiyat', 'tutar', 'amount', 'brutto'],
+      currency: ['währung', 'currency', 'para birimi', 'doviz', 'fx'],
+      provisionRate: ['provision', 'prov.', 'prov %', 'kommission', 'komisyon', 'commission', 'proc.'],
+      netto: ['netto', 'net', 'nettobetrag', 'net price'],
+      kdOffen: ['offen', 'kd offen', 'offener betrag', 'kalan', 'remaining', 'balance', 'açık'],
+      restAnVA: ['rest an va', 'restan', 'rest va', 'rest veranst', 'kalan va', 'bakiye'],
+      reisebeschreibung: ['beschreibung', 'bemerkung', 'notiz', 'notes', 'description', 'açıklama', 'not', 'kommentar', 'comment']
     };
     
     headers.forEach(header => {
-      const headerLower = header.name.toLowerCase();
+      const headerLower = header.name.toLowerCase().trim();
       
       for (const [systemCol, keywords] of Object.entries(matchRules)) {
         if (keywords.some(keyword => headerLower.includes(keyword))) {
@@ -1327,7 +1452,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
   };
 
   // Excel verilerini sisteme aktar
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     const newReservations = [];
     
     excelData.forEach((row, index) => {
@@ -1407,10 +1532,17 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
       return;
     }
     
-    // Tüm rezervasyonları ekle
-    newReservations.forEach(res => onAddReservation(res));
-    
-    alert(`${newReservations.length} rezervasyon başarıyla içe aktarıldı!`);
+    // Duplicate kontrolü ile ekle
+    if (onBulkAddReservations) {
+      const { added, skipped } = await onBulkAddReservations(newReservations);
+      if (skipped > 0)
+        alert(`${added} Reservierung(en) importiert.\n${skipped} bereits vorhanden und übersprungen.`);
+      else
+        alert(`${added} Reservierung(en) erfolgreich importiert!`);
+    } else {
+      newReservations.forEach(res => onAddReservation(res));
+      alert(`${newReservations.length} rezervasyon başarıyla içe aktarıldı!`);
+    }
     setShowImportModal(false);
     setExcelHeaders([]);
     setExcelData([]);
@@ -1449,8 +1581,26 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
         return formatDate(reservation.ruckreise);
       case 'ziel':
         return reservation.ziel || '-';
-      case 'gebuchteVA':
-        return reservation.gebuchteVA || '-';
+      case 'gebuchteVA': {
+        const code = (reservation.gebuchteVA || '').trim().toUpperCase();
+        if (!code) return <span style={{ color: 'var(--text2)' }}>—</span>;
+        return (
+          <span style={{
+            display: 'inline-block',
+            padding: '2px 7px',
+            borderRadius: '4px',
+            fontSize: '10px',
+            fontWeight: '700',
+            fontFamily: "'JetBrains Mono', monospace",
+            background: 'rgba(0,184,122,0.12)',
+            color: 'var(--accent)',
+            border: '1px solid rgba(0,184,122,0.28)',
+            letterSpacing: '0.04em'
+          }}>
+            {code}
+          </span>
+        );
+      }
       case 'buchung':
         return formatDate(reservation.buchung);
       case 'reisepreis':
@@ -1471,7 +1621,43 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
         return reservation.restAnVA ? `${parseFloat(reservation.restAnVA).toFixed(2)} €` : '-';
       case 'reisebeschreibung':
         return reservation.reisebeschreibung || '-';
-      default:
+      case 'provAnzDatum':
+      case 'provAnzBetrag':
+      case 'provRestDatum':
+      case 'provRestBetrag': {
+        const vaCode = (reservation.gebuchteVA || '').trim().toUpperCase();
+        const agenturEntry = agenturData[vaCode] ||
+          Object.entries(agenturData).find(([k]) => k.toUpperCase() === vaCode)?.[1];
+        if (!agenturEntry) return <span style={{ color: 'var(--text2)' }}>—</span>;
+        const result = calcProvisionDates(reservation, agenturEntry);
+        if (!result || result.payments.length === 0)
+          return <span style={{ color: 'var(--text2)' }}>—</span>;
+        const isAnz = columnKey === 'provAnzDatum' || columnKey === 'provAnzBetrag';
+        const isDate = columnKey === 'provAnzDatum' || columnKey === 'provRestDatum';
+        let payment = null;
+        if (result.kasseTyp === 'DKI') {
+          payment = isAnz ? result.payments[0] : null;
+        } else {
+          payment = isAnz ? result.payments[0] : result.payments[1];
+        }
+        if (!payment) return <span style={{ color: 'var(--text2)' }}>—</span>;
+        const color = getPaymentDateColor(payment.date);
+        if (isDate) {
+          const dateStr = payment.date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+          return (
+            <span style={{ color, fontSize: '10px', fontFamily: "'JetBrains Mono', monospace", fontWeight: color === 'var(--text)' ? '400' : '700', whiteSpace: 'nowrap' }}>
+              {dateStr}
+            </span>
+          );
+        } else {
+          return (
+            <span style={{ color, fontSize: '10px', fontFamily: "'JetBrains Mono', monospace", fontWeight: '700', whiteSpace: 'nowrap' }}>
+              {payment.amount.toFixed(0)} €
+            </span>
+          );
+        }
+      }
+            default:
         return '-';
     }
   };
@@ -1834,19 +2020,23 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
       </div>
 
       {/* Tablo */}
+      {(() => {
+        const visibleColDefs = COLUMN_DEFINITIONS.filter(col => visibleColumns[col.key]);
+        const tableWidth = visibleColDefs.reduce((sum, col) => sum + col.width, 0) + 40 + 90; // +checkbox +actions
+        return (
       <div className="expense-table-container" style={{ 
         fontSize: '8px',
         width: '100%',
-        overflow: 'visible'
+        overflowX: 'auto'
       }}>
         <table className="expense-table" style={{ 
           fontSize: '8px',
           tableLayout: 'fixed',
-          width: '100%'
+          width: tableWidth + 'px'
         }}>
           <thead>
-            <tr>
-              <th style={{ padding: '8px 4px', whiteSpace: 'nowrap', width: '40px' }}>
+            <tr style={{ background: 'var(--surface)' }}>
+              <th style={{ padding: '8px 6px', whiteSpace: 'nowrap', width: '40px', background: 'var(--surface)', borderBottom: '2px solid var(--accent)', borderRight: '1px solid var(--border)' }}>
                 <input
                   type="checkbox"
                   checked={selectedIds.length === paginatedData.length && paginatedData.length > 0}
@@ -1855,12 +2045,35 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                   title="Tümünü Seç/Kaldır"
                 />
               </th>
-              {COLUMN_DEFINITIONS.filter(col => visibleColumns[col.key]).map(column => (
-                <th key={column.key} style={{ padding: '8px 4px', whiteSpace: 'nowrap', width: column.width }}>
+              {COLUMN_DEFINITIONS.filter(col => visibleColumns[col.key]).map((column, i, arr) => (
+                <th key={column.key} style={{
+                  padding: '8px 6px',
+                  whiteSpace: 'nowrap',
+                  width: column.width + 'px',
+                  background: i % 2 === 0 ? 'var(--surface)' : 'rgba(0,184,122,0.06)',
+                  borderBottom: '2px solid var(--accent)',
+                  borderRight: '1px solid var(--border)',
+                  color: 'var(--text)',
+                  fontWeight: '700',
+                  fontSize: '9px',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase'
+                }}>
                   {column.label}
                 </th>
               ))}
-              <th style={{ padding: '8px 4px', whiteSpace: 'nowrap', width: '8%' }}>Aktionen</th>
+              <th style={{
+                padding: '8px 6px',
+                whiteSpace: 'nowrap',
+                width: '8%',
+                background: 'var(--surface)',
+                borderBottom: '2px solid var(--accent)',
+                color: 'var(--text)',
+                fontWeight: '700',
+                fontSize: '9px',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase'
+              }}>Aktionen</th>
             </tr>
           </thead>
           <tbody>
@@ -1939,6 +2152,8 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
           </tbody>
         </table>
       </div>
+        );
+      })()}
 
       {/* Pagination Kontrolleri */}
       {filtered.length > 0 && (
@@ -2518,7 +2733,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
             <div className="modal-header">
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '24px' }}>📋</span>
-                <span>Rezervasyon Bilgilerini Kontrol Edin</span>
+                <span>Reservierungsdaten prüfen</span>
               </h2>
               <button className="close-btn" onClick={() => {
                 setShowScanModal(false);
@@ -2549,15 +2764,15 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                       color: 'var(--text)',
                       fontSize: '20px'
                     }}>
-                      Rezervasyon Formu Yükle
+                      Reservierungsformular hochladen
                     </h3>
                     <p style={{ 
                       color: 'var(--text2)', 
                       marginBottom: '24px',
                       lineHeight: '1.6'
                     }}>
-                      Resim yüklediğinizde otomatik olarak<br/>
-                      rezervasyon bilgileri çıkartılacak
+                      Nach dem Hochladen eines Bildes werden<br/>
+                      die Reservierungsdaten automatisch extrahiert
                     </p>
                     <input
                       type="file"
@@ -2577,7 +2792,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                         fontWeight: '600'
                       }}
                     >
-                      📷 Resim Seç
+                      📷 Bild auswählen
                     </label>
                     <div style={{ 
                       fontSize: '13px', 
@@ -2587,7 +2802,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                       background: 'var(--bg)',
                       borderRadius: '8px'
                     }}>
-                      💡 PDF belgelerini resim olarak kaydedin
+                      💡 PDF-Dokumente als Bild speichern
                     </div>
                   </div>
                 </div>
@@ -2917,6 +3132,34 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
               </>
             )}
 
+            {/* OCR Raw Text Debug Panel */}
+            {rawOcrText && (
+              <div style={{ padding: '0 20px 8px' }}>
+                <button
+                  type="button"
+                  style={{
+                    background: 'none', border: '1px solid var(--border)', borderRadius: '6px',
+                    color: 'var(--text2)', fontSize: '11px', cursor: 'pointer', padding: '4px 10px'
+                  }}
+                  onClick={() => setShowRawOcr(v => !v)}
+                >
+                  🔍 OCR Ham Metin {showRawOcr ? '▲ Gizle' : '▼ Göster'}
+                </button>
+                {showRawOcr && (
+                  <textarea
+                    readOnly
+                    value={rawOcrText}
+                    style={{
+                      display: 'block', marginTop: '6px', width: '100%', height: '180px',
+                      background: '#0d0f12', color: '#a0a8b8', fontSize: '11px',
+                      fontFamily: 'monospace', border: '1px solid var(--border)',
+                      borderRadius: '6px', padding: '8px', resize: 'vertical', boxSizing: 'border-box'
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
             {/* Modal Footer - extractedData varsa göster */}
             {scanningImage && extractedData && (
               <div className="modal-footer">
@@ -2930,6 +3173,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                     setRawOcrText('');
                     setOcrProgress(0);
                     setOcrStatus('');
+                    setShowRawOcr(false);
                   }}
                 >
                   Abbrechen
@@ -2995,10 +3239,10 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
               }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', marginBottom: '4px', display: 'block' }}>
-                    📋 Başlık Satırı (Header)
+                    📋 Kopfzeile (Header)
                   </label>
                   <p style={{ margin: 0, fontSize: '11px', color: 'var(--text2)', lineHeight: '1.4' }}>
-                    Sütun başlıklarının bulunduğu satırı seçin. Otomatik tespit: <strong>Satır {headerRowIndex + 1}</strong>
+                    Wählen Sie die Zeile mit den Spaltenüberschriften. Automatisch erkannt: <strong>Zeile {headerRowIndex + 1}</strong>
                   </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3029,7 +3273,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                   >
                     {Array.from({ length: Math.min(15, rawExcelData.length) }, (_, i) => (
                       <option key={i} value={i}>
-                        Satır {i + 1}
+                        Zeile {i + 1}
                       </option>
                     ))}
                   </select>
@@ -3046,7 +3290,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                   border: '1px solid var(--border)'
                 }}>
                   <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text)', marginBottom: '8px' }}>
-                    🔍 Seçili Satır Önizleme:
+                    🔍 Vorschau der ausgewählten Zeile:
                   </div>
                   <div style={{ 
                     display: 'flex', 
@@ -3072,7 +3316,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                     ))}
                     {rawExcelData[headerRowIndex].length > 10 && (
                       <span style={{ color: 'var(--text2)', alignSelf: 'center' }}>
-                        ... ve {rawExcelData[headerRowIndex].length - 10} sütun daha
+                        ... und {rawExcelData[headerRowIndex].length - 10} weitere Spalten
                       </span>
                     )}
                   </div>
@@ -3083,9 +3327,9 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
                     <tr style={{ background: 'var(--surface)', borderBottom: '2px solid var(--border)' }}>
-                      <th style={{ padding: '10px', textAlign: 'left', width: '40%' }}>Excel Sütunu</th>
-                      <th style={{ padding: '10px', textAlign: 'center', width: '10%' }}>Durum</th>
-                      <th style={{ padding: '10px', textAlign: 'left', width: '50%' }}>Sistem Sütunu</th>
+                      <th style={{ padding: '10px', textAlign: 'left', width: '40%' }}>Excel-Spalte</th>
+                      <th style={{ padding: '10px', textAlign: 'center', width: '10%' }}>Status</th>
+                      <th style={{ padding: '10px', textAlign: 'left', width: '50%' }}>Systemspalte</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3094,7 +3338,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                         <td style={{ padding: '10px' }}>
                           <strong>{header.name}</strong>
                           <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '4px' }}>
-                            Örnek: {excelData[0]?.[header.index]?.toString().substring(0, 30) || '-'}
+                            Beispiel: {excelData[0]?.[header.index]?.toString().substring(0, 30) || '-'}
                           </div>
                         </td>
                         <td style={{ padding: '10px', textAlign: 'center' }}>
@@ -3116,21 +3360,21 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                               fontSize: '12px'
                             }}
                           >
-                            <option value="">-- Atla --</option>
+                            <option value="">-- Überspringen --</option>
                             <option value="vgNr">Vorg.-Nr.</option>
                             <option value="name">Name</option>
-                            <option value="abreise">Abreise (Başlangıç Tarihi)</option>
-                            <option value="ruckreise">Rückreise (Dönüş Tarihi)</option>
-                            <option value="ziel">Ziel (Hedef)</option>
-                            <option value="gebuchteVA">Veranstaltung (Acentesi)</option>
-                            <option value="buchung">Buchung (Kayıt Tarihi)</option>
-                            <option value="reisepreis">Reisepreis (Fiyat) *</option>
-                            <option value="currency">Währung (Para Birimi)</option>
-                            <option value="provisionRate">Provision % (Komisyon)</option>
+                            <option value="abreise">Abreise</option>
+                            <option value="ruckreise">Rückreise</option>
+                            <option value="ziel">Ziel</option>
+                            <option value="gebuchteVA">Veranstaltung</option>
+                            <option value="buchung">Buchung</option>
+                            <option value="reisepreis">Reisepreis *</option>
+                            <option value="currency">Währung</option>
+                            <option value="provisionRate">Provision %</option>
                             <option value="netto">Netto</option>
-                            <option value="kdOffen">Kd. Offen (Açık)</option>
+                            <option value="kdOffen">Kd. Offen</option>
                             <option value="restAnVA">Rest an VA</option>
-                            <option value="reisebeschreibung">Reisebeschreibung (Açıklama)</option>
+                            <option value="reisebeschreibung">Reisebeschreibung</option>
                           </select>
                         </td>
                       </tr>
@@ -3140,7 +3384,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
               </div>
 
               <div style={{ marginTop: '20px', padding: '12px', background: 'var(--surface)', borderRadius: '8px', border: '1px solid var(--accent)' }}>
-                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--accent)' }}>🔍 Önizleme (İlk 3 Satır)</h4>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--accent)' }}>🔍 Vorschau (Erste 3 Zeilen)</h4>
                 <div style={{ overflow: 'auto', maxHeight: '200px' }}>
                   {excelData.slice(0, 3).map((row, idx) => (
                     <div key={idx} style={{ 
@@ -3150,7 +3394,7 @@ function ReservationsView({ reservations = [], onDelete, onEdit, onAddReservatio
                       borderRadius: '6px',
                       fontSize: '11px'
                     }}>
-                      <strong>Satır {idx + 1}:</strong>
+                      <strong>Zeile {idx + 1}:</strong>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginTop: '6px' }}>
                         {Object.entries(columnMapping)
                           .filter(([_, systemCol]) => systemCol && systemCol !== 'skip')

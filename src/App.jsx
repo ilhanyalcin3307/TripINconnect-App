@@ -17,34 +17,331 @@ import ProfileModal from './components/ProfileModal';
 import Toast from './components/Toast';
 
 const DEFAULT_CATEGORIES = [
-  'ANEX|ANEX Tour',
-  'XANE|ANEX Tour dynamisch',
-  'BU|BUCHER Reisen',
-  'XBU|GoBUCHER!',
-  'COR|Coral Travel',
-  'COS|Coral Travel Schweiz',
-  'DER|DERTOUR',
-  'DERT|DERTOUR International',
-  'ITS|ITS Reisen',
-  'ITSX|ITS INDI',
-  'NEC|Neckermann Reisen',
-  'XNEC|Neckermann Reisen dynamisch',
-  'OGE|ÖGER TOURS',
-  'XOGE|ÖGER TOURS dynamisch',
-  'SLR|schauinsland-reisen',
-  'SLRD|schauinsland-dynamisch',
-  'ALL|alltours',
-  'FER|FERIEN Touristik',
-  'LMX|LMX Touristik',
-  'VTO|vtours',
-  'VTOI|vtours international',
-  'SIT|spica.travel',
-  'FALK|FalkTravel',
+  // 1A Vista
+  'AVST|1A Vista',
+  // AIDA
+  'AIDA|AIDA', 'AIR|Air Marin', 'ALD|ALDIANA', 'ALDX|Aldiana dynamisch',
+  'ALDI|Aldiana', 'ALL|Alltours-x',
+  // Alltours
+  'ALLT|Alltours', 'BYE|byebye', 'BYEX|byebye-dynamisch', 'AMER|AMEROPA',
+  // Anex Gruppe
+  'ANEX|ANEX Tour', 'BU|BUCHER Reisen', 'NEC|Neckermann Reisen', 'OGE|ÖGER TOURS',
+  'XANE|ANEX Tour dynamisch', 'XBU|GoBUCHER!', 'XNEC|Neckermann Reisen dynamisch', 'XOGE|ÖGER TOURS dynamisch',
+  // Anton Götten
+  'CED|Anton Götten',
+  // A-ROSA
+  'AROS|A-ROSA Flussschiff',
+  // Austrian Airlines
+  'BAV|Bavaria Fernreisen',
+  // Bavaria / Belvilla
+  'BELV|Belvilla',
+  // Bentour
   'BCH|Bentour Reisen',
-  'TJAX|TRAVELIX',
-  'XPUR|ITT XPUR',
-  'BYE|byebye'
+  // Berge & Meer / Capital Holidays
+  'CPH|Capital Holidays', 'CEPA|Center Parcs',
+  // Christophorus
+  'CHRI|Christophorus Reiseveran.',
+  // cleverreisen
+  'CLEV|cleverreisen',
+  // Club Med
+  'CMD|Club Med', 'CFI|Condor Fluglinie',
+  // Coop-ITS / Conneton
+  'ITSC|Coop-ITS-Travel', 'CONN|Conneton Airlines',
+  // Coral
+  'COR|Coral Travel', 'COS|Coral Travel Schweiz', 'FER|FERIEN Touristik',
+  // Costa
+  'CST|Costa Kreuzfahrten',
+  // DanCenter
+  'DAC|DanCenter', 'DANS|Dansommer',
+  // DCS
+  'DCST|DCS Touristik', 'DER|DER',
+  // Dertour
+  'DERT|DERTOUR International', 'ECC|Ecco Reisen', 'DKTO|DKTOURISTIK', 'TIAX|TRAVELIX Last Minute',
+  // ETI
+  'ETI|ETI', 'EYH|Etihad Holidays', 'EWH|Eurowings-Holidays', 'EWHI|EWH Holidays',
+  // FalkTravel
+  'FALK|FalkTravel', 'FALD|Falk Travel Dynamic', 'HOL|First of Holiday',
+  // Fit Reisen
+  'FIT|Fit Reisen',
+  // Flamingo
+  'FLT|Flamingo Tours',
+  // For You Travel
+  'FORK|For You Travel', 'FORC|For You Travel', 'FORF|For You Travel',
+  // Freizeitreisen
+  'FRI|Freizeitreisen', 'FUHR|Fuhrmann Mundstock',
+  // Gebeco
+  'GEBE|Gebeco', 'GIMM|Gimmler Reisen',
+  // Globalis
+  'GER|Globalis Erlebnisreisen', 'GLOB|Globetrotter Reisen',
+  // goXplore
+  'GOX|goXplore',
+  // Grafs
+  'GRAF|Grafs Reisen',
+  // GRUBER
+  'GRUB|GRUBER/Aaretat Reisen', 'HVT|Helvetic Tours',
+  // HLX
+  'HLX|HLX Touristik', 'HLXC|HolidayCloud',
+  // HolidayG
+  'HOLG|HolidayG',
+  // HolidayTrax
+  'TRIX|HolidayTrax',
+  // IB Hamburg
+  'IVH|IB Hamburg',
+  // ID. Riva
+  'RIVA|I.D. Riva Tours',
+  // Idealtours
+  'IDEA|Idealtours', 'INDO|Indochina Travels',
+  // InterChalet
+  'ICHE|InterChalet', 'IHOM|Interhome',
+  // IT
+  'ITT|IT-TravelTime', 'XPUR|ITTXPUR',
+  // JAHN
+  'JAHN|JAHN REISEN', 'XIAH|JAHN REISEN Indi',
+  // Kneissl
+  'KNEI|Kneissl Touristik', 'KUON|Kuoni Reisen', 'KUONI|Kuoni Reisen',
+  // Lifecard
+  'LTA|Lifecard Travel Assistance',
+  // LMX
+  'LMX|LMX Touristik', 'LMXF|LMX Flex', 'LMXI|LMX International', 'LMXIF|LMX International Flex',
+  // Lufthansa
+  'LHH|Lufthansa Holidays', 'LUXR|Luxair',
+  // Marco Polo
+  'MPOL|Marco Polo Reisen', 'MPGR|Marco Polo Reisen',
+  // Mayfair
+  'MFJ|Mayfair Jets',
+  // Meiers
+  'MVR|MEIERS WELTREISEN',
+  // Mondial
+  'MON|Mondial',
+  // Natura
+  'NASP|Natura Spa',
+  // Neckabauer
+  'NECK|Neckabauer',
+  // Nicko Cruises
+  'NIC|Nicko Cruises Schifffreisen',
+  // Novasol
+  'NOVO|NOVASOL', 'CUEN|Novasol', 'NURI|NUR Touristik',
+  // OASIS
+  'OAST|OASIS Travel',
+  // OLIMAR
+  'OLI|OLIMAR', 'PHON|Phönix Reisen',
+  // Plantours
+  'PLAN|Plantours',
+  // Prima
+  'PRIM|Prima Reisen', 'PTIC|PTI Panoramica',
+  // Rhomberg
+  'RHOM|Rhomberg Reisen', 'RTA|RTARail Tours',
+  // Ruefa
+  'RUEF|Ruefa',
+  // Schauinsland
+  'SLR|schauinsland-reisen', 'SLRD|schauinsland-dynamisch',
+  // Seita Med
+  'SMED|Seita Med', 'SIX|Sixt', 'SKR|SKR Reisen',
+  // Spica
+  'SIT|spica.travel',
+  // Studiosus
+  'STUD|Studiosus Reisen München', 'GRUP|Studiosus Gruppenreisen',
+  // SunExpress
+  'SUNX|SunExpress',
+  // Sunny Cars
+  'SCAR|Sunny Cars',
+  // Swiss Group
+  'SGRO|Swiss Group International',
+  // SZ-Reisen
+  'SZR|SZ-Reisen',
+  // Terra
+  'TERR|Terra Reisen',
+  // Tischler
+  'TSCR|Tischler Reisen',
+  // Tour Vital
+  'TVR|Tour Vital',
+  // Tourenia
+  'TOU|Tourenia',
+  // Travelers Friend
+  'TRAV|Travelers Friend pow. By LMX', 'TREX|trendtours',
+  // Triada
+  'TRIA|Triada S.A.',
+  // Troll
+  'TROL|Troll Touristik',
+  // tropo
+  'TROP|tropo',
+  // UKS
+  'UKS|UKS Touristik',
+  // Uptour
+  'UPS|Uptour', 'URL|URLAUBS TOURISTIK', 'ULT|Urlaubstouristik international',
+  // Vtours
+  'VTO|vtours', 'VTOI|vtours international',
+  // WeFly24
+  'W24|WeFly24',
+  // WINDROSE
+  'WFT|WINDROSE Finest Travel',
+  // Wörlitz
+  'WOER|Wörlitz Touristik',
 ];
+
+const DEFAULT_AGENTUR_GRUPPE = {
+  // 1A Vista
+  AVST: '1A Vista',
+  // AIDA
+  AIDA: 'AIDA', AIR: 'AIDA', ALD: 'AIDA', ALDX: 'AIDA', ALDI: 'AIDA',
+  // Alltours-x
+  ALL: 'Alltours-x',
+  // Alltours
+  ALLT: 'Alltours', BYE: 'Alltours', BYEX: 'Alltours', AMER: 'Alltours',
+  // Anex Gruppe
+  ANEX: 'Anex Gruppe', BU: 'Anex Gruppe', NEC: 'Anex Gruppe', OGE: 'Anex Gruppe',
+  XANE: 'Anex Gruppe', XBU: 'Anex Gruppe', XNEC: 'Anex Gruppe', XOGE: 'Anex Gruppe',
+  // Anton Götten
+  CED: 'Anton Götten',
+  // A-ROSA
+  AROS: 'A-ROSA',
+  // Austrian Airlines / Bavaria
+  BAV: 'Bavaria Fernreisen',
+  // Belvilla
+  BELV: 'Belvilla',
+  // Bentour
+  BCH: 'Bentour',
+  // Capital / Center Parcs
+  CPH: 'Capital Holidays', CEPA: 'Center Parcs',
+  // Christophorus
+  CHRI: 'Christophorus',
+  // cleverreisen
+  CLEV: 'cleverreisen',
+  // Club Med / Condor
+  CMD: 'Club Med', CFI: 'Condor',
+  // Coop-ITS / Conneton
+  ITSC: 'Coop-ITS', CONN: 'Conneton Airlines',
+  // Coral
+  COR: 'Coral', COS: 'Coral', FER: 'Coral',
+  // Costa
+  CST: 'Costa',
+  // DanCenter / Dansommer
+  DAC: 'DanCenter', DANS: 'DanCenter',
+  // DCS
+  DCST: 'DCS Touristik', DER: 'DCS Touristik',
+  // Dertour
+  DERT: 'Dertour', ECC: 'Dertour', DKTO: 'Dertour', TIAX: 'Dertour',
+  // ETI
+  ETI: 'ETI', EYH: 'ETI', EWH: 'ETI', EWHI: 'ETI',
+  // FalkTravel
+  FALK: 'Falk Travel', FALD: 'Falk Travel', HOL: 'Falk Travel',
+  // Fit Reisen
+  FIT: 'Fit Reisen',
+  // Flamingo
+  FLT: 'Flamingo',
+  // For You Travel
+  FORK: 'For You Travel', FORC: 'For You Travel', FORF: 'For You Travel',
+  // Freizeitreisen
+  FRI: 'Freizeitreisen', FUHR: 'Freizeitreisen',
+  // Gebeco / Gimmler
+  GEBE: 'Gebeco', GIMM: 'Gimmler Reisen',
+  // Globalis / Globetrotter
+  GER: 'Globalis', GLOB: 'Globalis',
+  // goXplore
+  GOX: 'goXplore',
+  // Grafs
+  GRAF: 'Grafs Reisen',
+  // GRUBER
+  GRUB: 'GRUBER', HVT: 'GRUBER',
+  // HLX
+  HLX: 'HLX', HLXC: 'HLX',
+  // HolidayG
+  HOLG: 'HolidayG',
+  // HolidayTrax
+  TRIX: 'HolidayTrax',
+  // IB Hamburg
+  IVH: 'IB Hamburg',
+  // ID. Riva
+  RIVA: 'I.D. Riva',
+  // Idealtours / Indochina
+  IDEA: 'Idealtours', INDO: 'Indochina Travels',
+  // InterChalet / Interhome
+  ICHE: 'Interhome', IHOM: 'Interhome',
+  // IT / ITT
+  ITT: 'ITT', XPUR: 'ITT',
+  // JAHN
+  JAHN: 'JAHN', XIAH: 'JAHN',
+  // Kneissl / Kuoni
+  KNEI: 'Kneissl', KUON: 'Kuoni', KUONI: 'Kuoni',
+  // Lifecard
+  LTA: 'Lifecard',
+  // LMX
+  LMX: 'LMX', LMXF: 'LMX', LMXI: 'LMX', LMXIF: 'LMX',
+  // Lufthansa / Luxair
+  LHH: 'Lufthansa Holidays', LUXR: 'Lufthansa Holidays',
+  // Marco Polo
+  MPOL: 'Marco Polo', MPGR: 'Marco Polo',
+  // Mayfair
+  MFJ: 'Mayfair Jets',
+  // Meiers
+  MVR: 'Meiers Weltreisen',
+  // Mondial
+  MON: 'Mondial',
+  // Natura
+  NASP: 'Natura Spa',
+  // Neckabauer
+  NECK: 'Neckabauer',
+  // Nicko Cruises
+  NIC: 'Nicko Cruises',
+  // Novasol / NUR
+  NOVO: 'Novasol', CUEN: 'Novasol', NURI: 'NUR Touristik',
+  // OASIS
+  OAST: 'OASIS Travel',
+  // OLIMAR / Phönix
+  OLI: 'OLIMAR', PHON: 'Phönix Reisen',
+  // Plantours
+  PLAN: 'Plantours',
+  // Prima / PTI
+  PRIM: 'Prima Reisen', PTIC: 'PTI',
+  // Rhomberg / RTA
+  RHOM: 'Rhomberg', RTA: 'Rhomberg',
+  // Ruefa
+  RUEF: 'Ruefa',
+  // Schauinsland
+  SLR: 'Schauinsland', SLRD: 'Schauinsland',
+  // Seita Med / Sixt / SKR
+  SMED: 'Seita Med', SIX: 'Sixt', SKR: 'SKR Reisen',
+  // Spica
+  SIT: 'Spica',
+  // Studiosus
+  STUD: 'Studiosus', GRUP: 'Studiosus',
+  // SunExpress
+  SUNX: 'SunExpress',
+  // Sunny Cars
+  SCAR: 'Sunny Cars',
+  // Swiss Group
+  SGRO: 'Swiss Group',
+  // SZ-Reisen
+  SZR: 'SZ-Reisen',
+  // Terra
+  TERR: 'Terra Reisen',
+  // Tischler
+  TSCR: 'Tischler Reisen',
+  // Tour Vital
+  TVR: 'Tour Vital',
+  // Tourenia
+  TOU: 'Tourenia',
+  // Travelers Friend / trendtours
+  TRAV: 'Travelers Friend', TREX: 'Travelers Friend',
+  // Triada
+  TRIA: 'Triada',
+  // Troll
+  TROL: 'Troll',
+  // tropo
+  TROP: 'tropo',
+  // UKS
+  UKS: 'UKS',
+  // Uptour / Urlaubstouristik
+  UPS: 'Uptour', URL: 'URLAUBS TOURISTIK', ULT: 'URLAUBS TOURISTIK',
+  // Vtours
+  VTO: 'Vtours', VTOI: 'Vtours',
+  // WeFly24
+  W24: 'WeFly24',
+  // WINDROSE
+  WFT: 'WINDROSE',
+  // Wörlitz
+  WOER: 'Wörlitz',
+};
 
 function App() {
   // --------- Auth ---------
@@ -109,12 +406,34 @@ function App() {
     const savedCat = localStorage.getItem(catKey);
     if (savedCat) {
       const parsed = JSON.parse(savedCat);
-      setCategories(parsed.length > 0 && !parsed[0].includes('|') ? DEFAULT_CATEGORIES : parsed);
+      // Kayıtlı kategorileri DEFAULT_CATEGORIES ile merg et:
+      // Eski kodları koru (+yeni isimlerle güncelle), yeni eklenen DEFAULT kodlarını ekle
+      const defaultCodes = new Set(DEFAULT_CATEGORIES.map(c => c.split('|')[0]));
+      const savedCodes = new Set(parsed.map(c => c.includes('|') ? c.split('|')[0] : c));
+      // Sadece DEFAULT'ta olmayan kodları sakla (kullanıcı eklemeleri)
+      const extraCats = parsed.filter(c => {
+        const code = c.includes('|') ? c.split('|')[0] : c;
+        return !defaultCodes.has(code);
+      });
+      // DEFAULT_CATEGORIES her zaman temel liste, üstüne kullanıcı eklemeleri
+      setCategories([...DEFAULT_CATEGORIES, ...extraCats]);
     } else {
       setCategories(DEFAULT_CATEGORIES);
     }
     const savedAg = localStorage.getItem(agKey);
-    setAgenturData(savedAg ? JSON.parse(savedAg) : {});
+    if (savedAg) {
+      const parsed = JSON.parse(savedAg);
+      // DEFAULT_AGENTUR_GRUPPE ile grup bilgilerini güncelle (migrasyon)
+      const migrated = { ...parsed };
+      Object.entries(DEFAULT_AGENTUR_GRUPPE).forEach(([code, gruppe]) => {
+        if (migrated[code]) {
+          migrated[code] = { ...migrated[code], gruppe };
+        }
+      });
+      setAgenturData(migrated);
+    } else {
+      setAgenturData({});
+    }
     loadExpenses();
     loadMarketingEvents();
     loadVisitReports();
@@ -143,15 +462,22 @@ function App() {
     localStorage.setItem(`${user.id}_agenturProvisionData`, JSON.stringify(agenturData));
   }, [agenturData, user?.id]);
 
-  // categories değişince yeni kodlar için default giriş oluştur
+  // categories değişince her kod için DEFAULT_AGENTUR_GRUPPE'dan grubu uygula
+  // Sadece gruppe boşsa doldurur — kullanıcının elle düzenlediği grupları korur
   useEffect(() => {
     setAgenturData(prev => {
       const updated = { ...prev };
       let changed = false;
       categories.forEach(cat => {
         const code = cat.includes('|') ? cat.split('|')[0] : cat;
+        const defaultGruppe = DEFAULT_AGENTUR_GRUPPE[code] || '';
         if (!updated[code]) {
-          updated[code] = { provPct: 10, zusatzprovision: '', zusatzPct: '', berechnung: 'Abreisedatum', tage: '30' };
+          // Yeni kod: default değerlerle oluştur
+          updated[code] = { gruppe: defaultGruppe, provPct: 10, zusatzprovision: '', zusatzPct: '', berechnung: 'Abreisedatum', tage: '30' };
+          changed = true;
+        } else if (!updated[code].gruppe && defaultGruppe) {
+          // Gruppe boşsa default'tan doldur (kullanıcı düzenlemesi varsa dokunma!)
+          updated[code] = { ...updated[code], gruppe: defaultGruppe };
           changed = true;
         }
       });
@@ -208,11 +534,48 @@ function App() {
 
   const addReservation = async (reservation) => {
     if (window.electronAPI) {
+      // Duplicate kontrolü: vgNr doluysa onu, yoksa name+abreise+reisepreis kombinasyonunu kullan
+      const isDuplicate = reservations.some(r => {
+        if (reservation.vgNr && r.vgNr)
+          return r.vgNr.trim().toLowerCase() === reservation.vgNr.trim().toLowerCase();
+        return (
+          r.name?.trim().toLowerCase() === reservation.name?.trim().toLowerCase() &&
+          r.abreise === reservation.abreise &&
+          String(r.reisepreis) === String(reservation.reisepreis)
+        );
+      });
+      if (isDuplicate) return null; // sessizce atla
       const newReservation = await window.electronAPI.addReservation(reservation);
       await loadReservations();
-      showToast('✓ Rezervasyon kaydedildi!');
+      showToast('\u2713 Rezervasyon kaydedildi!');
       return newReservation;
     }
+  };
+
+  const bulkAddReservations = async (newReservations) => {
+    if (!window.electronAPI || newReservations.length === 0) return { added: 0, skipped: 0 };
+    let added = 0;
+    let skipped = 0;
+    // Mevcut listeyi bir kez al, döngü içinde state güncellemesine gerek yok
+    const currentList = [...reservations];
+    const addedItems = [];
+    for (const reservation of newReservations) {
+      const isDuplicate = [...currentList, ...addedItems].some(r => {
+        if (reservation.vgNr && r.vgNr)
+          return r.vgNr.trim().toLowerCase() === reservation.vgNr.trim().toLowerCase();
+        return (
+          r.name?.trim().toLowerCase() === reservation.name?.trim().toLowerCase() &&
+          r.abreise === reservation.abreise &&
+          String(r.reisepreis) === String(reservation.reisepreis)
+        );
+      });
+      if (isDuplicate) { skipped++; continue; }
+      await window.electronAPI.addReservation(reservation);
+      addedItems.push(reservation);
+      added++;
+    }
+    await loadReservations();
+    return { added, skipped };
   };
 
   const deleteReservation = async (id) => {
@@ -221,6 +584,16 @@ function App() {
       await loadReservations();
       showToast('🗑 Rezervasyon silindi');
     }
+  };
+
+  const bulkDeleteReservations = async (ids) => {
+    if (!window.electronAPI || ids.length === 0) return;
+    // Her birini sırayla sil, bittikten sonra tek seferde listeyi yenile
+    for (const id of ids) {
+      await window.electronAPI.deleteReservation(id);
+    }
+    await loadReservations();
+    showToast(`🗑 ${ids.length} Reservierungen gelöscht`);
   };
 
   const updateReservation = async (reservation) => {
@@ -443,7 +816,7 @@ function App() {
         />
         
         <div className="content">
-          {currentView === 'dashboard' && <Dashboard marketingEvents={marketingEvents} reservations={reservations} exchangeRates={exchangeRates} />}
+          {currentView === 'dashboard' && <Dashboard marketingEvents={marketingEvents} reservations={reservations} exchangeRates={exchangeRates} agenturData={agenturData} />}
           {currentView === 'fis' && (
             <ExpenseList 
               expenses={expenses}
@@ -474,7 +847,9 @@ function App() {
             <ReservationsView 
               reservations={reservations}
               onAddReservation={addReservation}
+              onBulkAddReservations={bulkAddReservations}
               onDelete={deleteReservation}
+              onBulkDelete={bulkDeleteReservations}
               onEdit={(reservation) => updateReservation(reservation)}
               exchangeRates={exchangeRates}
               agenturData={agenturData}

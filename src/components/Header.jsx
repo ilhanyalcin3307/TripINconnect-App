@@ -104,6 +104,14 @@ function Header({ title, onExport, onAddExpense, onSettings, onImport, onLogout,
           </div>
         )}
         <div className="current-date">{formattedDate} • {formattedTime}</div>
+        <button
+          className="btn btn-outline"
+          onClick={() => window.location.reload()}
+          title="Seite neu laden"
+          style={{ fontSize: '14px', padding: '5px 10px' }}
+        >
+          ↺
+        </button>
         {onSettings && (
           <button className="btn btn-outline" onClick={onSettings} title="Einstellungen">
             ⚙️
@@ -112,7 +120,11 @@ function Header({ title, onExport, onAddExpense, onSettings, onImport, onLogout,
         {onLogout && (
           <button
             className="btn btn-outline"
-            onClick={onLogout}
+            onClick={() => {
+              if (window.confirm('Möchten Sie sich wirklich abmelden?')) {
+                onLogout();
+              }
+            }}
             title="Abmelden"
             style={{ fontSize: '12px', padding: '5px 10px' }}
           >
