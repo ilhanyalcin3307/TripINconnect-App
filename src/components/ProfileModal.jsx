@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 function ProfileModal({ onClose, showToast, onProfileUpdated, userEmail }) {
   const [formData, setFormData] = useState({
@@ -17,16 +18,13 @@ function ProfileModal({ onClose, showToast, onProfileUpdated, userEmail }) {
   }, []);
 
   const loadProfile = async () => {
-    if (window.electronAPI) {
-      const settings = await window.electronAPI.getSettings();
-      if (settings.profile) {
-        setFormData(prev => ({
-          ...settings.profile,
-          email: userEmail || settings.profile.email || ''
-        }));
-      } else if (userEmail) {
-        setFormData(prev => ({ ...prev, email: userEmail }));
-      }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single();
+    if (data?.profile) {
+      setFormData(prev => ({ ...data.profile, email: userEmail || data.profile.email || '' }));
+    } else if (userEmail) {
+      setFormData(prev => ({ ...prev, email: userEmail }));
     }
   };
 
@@ -43,26 +41,22 @@ function ProfileModal({ onClose, showToast, onProfileUpdated, userEmail }) {
       showToast('⚠️ Vor- und Nachname sind erforderlich!');
       return;
     }
-
-    if (window.electronAPI) {
-      await window.electronAPI.updateSettings({ profile: formData });
-      showToast('✓ Profil gespeichert!');
-      if (onProfileUpdated) onProfileUpdated();
-      onClose();
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('user_settings').upsert({
+      user_id: user.id,
+      user_email: userEmail || '',
+      profile: formData,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    showToast('✓ Profil gespeichert!');
+    if (onProfileUpdated) onProfileUpdated();
+    onClose();
   };
 
   const handleSelectFolder = async () => {
-    if (window.electronAPI) {
-      const result = await window.electronAPI.selectFolder();
-      if (result.success && result.path) {
-        setFormData(prev => ({
-          ...prev,
-          receiptStoragePath: result.path
-        }));
-        showToast('✓ Klasör seçildi!');
-      }
-    }
+    // Native klasör seçimi web'de mevcut değil
+    showToast('ℹ️ Bu özellik web versiyonunda geçerli değil.');
   };
 
   return (

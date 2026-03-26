@@ -352,19 +352,15 @@ function App() {
   const [userReady, setUserReady] = useState(false);
 
   useEffect(() => {
-    // Mevcut oturumu kontrol et
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user && window.electronAPI) {
-        await window.electronAPI.setCurrentUser(session.user.id, session.user.email);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
         setUser(session.user);
         setUserReady(true);
       }
       setAuthLoading(false);
     });
-    // Oturum değişikliklerini dinle (login/logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user && window.electronAPI) {
-        await window.electronAPI.setCurrentUser(session.user.id, session.user.email);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
         setUser(session.user);
         setUserReady(true);
       } else {
@@ -486,83 +482,81 @@ function App() {
   }, [categories]);
   
   const fetchExchangeRates = async () => {
-    if (window.electronAPI && window.electronAPI.getExchangeRates) {
-      try {
-        const result = await window.electronAPI.getExchangeRates();
-        if (result.success && result.data && result.data.rates) {
+    try {
+      const res = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD,GBP,TRY,CZK');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.rates) {
           setExchangeRates({
             EUR: 1,
-            USD: 1 / result.data.rates.USD,
-            GBP: 1 / result.data.rates.GBP,
-            TRY: 1 / result.data.rates.TRY,
-            CZK: 1 / result.data.rates.CZK
+            USD: 1 / data.rates.USD,
+            GBP: 1 / data.rates.GBP,
+            TRY: 1 / data.rates.TRY,
+            CZK: 1 / data.rates.CZK
           });
         }
-      } catch (error) {
-        console.error('Döviz kurları alınamadı:', error);
       }
+    } catch (error) {
+      console.error('Döviz kurları alınamadı:', error);
     }
   };
 
   const loadExpenses = async () => {
-    if (window.electronAPI) {
-      const data = await window.electronAPI.getExpenses();
-      setExpenses(data);
-    }
+    const { data } = await supabase.from('expenses').select('*').order('tarih', { ascending: false });
+    setExpenses(data || []);
   };
 
   const loadMarketingEvents = async () => {
-    if (window.electronAPI) {
-      const data = await window.electronAPI.getMarketingEvents();
-      setMarketingEvents(data || []);
-    }
+    const { data } = await supabase.from('marketing_events').select('*').order('tarih', { ascending: false });
+    setMarketingEvents((data || []).map(r => ({ id: r.id, ...r.data, tarih: r.tarih })));
   };
 
   const loadVisitReports = async () => {
-    if (window.electronAPI) {
-      const data = await window.electronAPI.getVisitReports();
-      setVisitReports(data || []);
-    }
+    const { data } = await supabase.from('visit_reports').select('*').order('date', { ascending: false });
+    setVisitReports((data || []).map(r => ({ id: r.id, ...r.data, date: r.date })));
   };
 
   const loadReservations = async () => {
-    if (window.electronAPI) {
-      const data = await window.electronAPI.getReservations();
-      setReservations(data);
-    }
+    const { data } = await supabase.from('reservations').select('*').order('abreise', { ascending: false });
+    setReservations((data || []).map(r => ({ id: r.id, ...r.data, vg_nr: r.vg_nr, name: r.name, abreise: r.abreise, reisepreis: r.reisepreis })));
   };
 
   const addReservation = async (reservation) => {
-    if (window.electronAPI) {
-      // Duplicate kontrolü: vgNr doluysa onu, yoksa name+abreise+reisepreis kombinasyonunu kullan
-      const isDuplicate = reservations.some(r => {
-        if (reservation.vgNr && r.vgNr)
-          return r.vgNr.trim().toLowerCase() === reservation.vgNr.trim().toLowerCase();
-        return (
-          r.name?.trim().toLowerCase() === reservation.name?.trim().toLowerCase() &&
-          r.abreise === reservation.abreise &&
-          String(r.reisepreis) === String(reservation.reisepreis)
-        );
-      });
-      if (isDuplicate) return null; // sessizce atla
-      const newReservation = await window.electronAPI.addReservation(reservation);
+    const isDuplicate = reservations.some(r => {
+      if (reservation.vgNr && r.vg_nr)
+        return r.vg_nr.trim().toLowerCase() === reservation.vgNr.trim().toLowerCase();
+      return (
+        r.name?.trim().toLowerCase() === reservation.name?.trim().toLowerCase() &&
+        r.abreise === reservation.abreise &&
+        String(r.reisepreis) === String(reservation.reisepreis)
+      );
+    });
+    if (isDuplicate) return null;
+    const { data, error } = await supabase.from('reservations').insert({
+      user_id: user.id,
+      vg_nr: reservation.vgNr || reservation.vg_nr || null,
+      name: reservation.name || null,
+      abreise: reservation.abreise || null,
+      reisepreis: reservation.reisepreis ? parseFloat(reservation.reisepreis) : null,
+      data: reservation
+    }).select().single();
+    if (!error) {
       await loadReservations();
-      showToast('\u2713 Rezervasyon kaydedildi!');
-      return newReservation;
+      showToast('✓ Rezervasyon kaydedildi!');
+      return data;
     }
+    return null;
   };
 
   const bulkAddReservations = async (newReservations) => {
-    if (!window.electronAPI || newReservations.length === 0) return { added: 0, skipped: 0 };
-    let added = 0;
-    let skipped = 0;
-    // Mevcut listeyi bir kez al, döngü içinde state güncellemesine gerek yok
+    if (!newReservations.length) return { added: 0, skipped: 0 };
+    let added = 0, skipped = 0;
     const currentList = [...reservations];
     const addedItems = [];
     for (const reservation of newReservations) {
       const isDuplicate = [...currentList, ...addedItems].some(r => {
-        if (reservation.vgNr && r.vgNr)
-          return r.vgNr.trim().toLowerCase() === reservation.vgNr.trim().toLowerCase();
+        if (reservation.vgNr && r.vg_nr)
+          return r.vg_nr.trim().toLowerCase() === reservation.vgNr.trim().toLowerCase();
         return (
           r.name?.trim().toLowerCase() === reservation.name?.trim().toLowerCase() &&
           r.abreise === reservation.abreise &&
@@ -570,7 +564,14 @@ function App() {
         );
       });
       if (isDuplicate) { skipped++; continue; }
-      await window.electronAPI.addReservation(reservation);
+      await supabase.from('reservations').insert({
+        user_id: user.id,
+        vg_nr: reservation.vgNr || reservation.vg_nr || null,
+        name: reservation.name || null,
+        abreise: reservation.abreise || null,
+        reisepreis: reservation.reisepreis ? parseFloat(reservation.reisepreis) : null,
+        data: reservation
+      });
       addedItems.push(reservation);
       added++;
     }
@@ -579,131 +580,139 @@ function App() {
   };
 
   const deleteReservation = async (id) => {
-    if (window.electronAPI) {
-      await window.electronAPI.deleteReservation(id);
-      await loadReservations();
-      showToast('🗑 Rezervasyon silindi');
-    }
+    await supabase.from('reservations').delete().eq('id', id);
+    await loadReservations();
+    showToast('🗑 Rezervasyon silindi');
   };
 
   const bulkDeleteReservations = async (ids) => {
-    if (!window.electronAPI || ids.length === 0) return;
-    // Her birini sırayla sil, bittikten sonra tek seferde listeyi yenile
-    for (const id of ids) {
-      await window.electronAPI.deleteReservation(id);
-    }
+    if (!ids.length) return;
+    await supabase.from('reservations').delete().in('id', ids);
     await loadReservations();
     showToast(`🗑 ${ids.length} Reservierungen gelöscht`);
   };
 
   const updateReservation = async (reservation) => {
-    if (window.electronAPI) {
-      await window.electronAPI.updateReservation(reservation.id, reservation);
-      await loadReservations();
-      showToast('✓ Rezervasyon güncellendi!');
-    }
+    await supabase.from('reservations').update({
+      vg_nr: reservation.vgNr || reservation.vg_nr || null,
+      name: reservation.name || null,
+      abreise: reservation.abreise || null,
+      reisepreis: reservation.reisepreis ? parseFloat(reservation.reisepreis) : null,
+      data: reservation
+    }).eq('id', reservation.id);
+    await loadReservations();
+    showToast('✓ Rezervasyon güncellendi!');
   };
 
   const addMarketingEvent = async (event) => {
-    if (window.electronAPI) {
-      await window.electronAPI.addMarketingEvent(event);
-      await loadMarketingEvents();
-      showToast('✓ Etkinlik kaydedildi!');
-    }
+    await supabase.from('marketing_events').insert({
+      user_id: user.id,
+      tarih: event.tarih || null,
+      data: event
+    });
+    await loadMarketingEvents();
+    showToast('✓ Etkinlik kaydedildi!');
   };
 
   const deleteMarketingEvent = async (id) => {
-    if (window.electronAPI) {
-      await window.electronAPI.deleteMarketingEvent(id);
-      await loadMarketingEvents();
-      showToast('🗑 Etkinlik silindi');
-    }
+    await supabase.from('marketing_events').delete().eq('id', id);
+    await loadMarketingEvents();
+    showToast('🗑 Etkinlik silindi');
   };
 
   const updateMarketingEvent = async (event) => {
-    if (window.electronAPI) {
-      await window.electronAPI.updateMarketingEvent(event.id, event);
-      await loadMarketingEvents();
-      showToast('✓ Etkinlik güncellendi!');
-    }
+    await supabase.from('marketing_events').update({
+      tarih: event.tarih || null,
+      data: event
+    }).eq('id', event.id);
+    await loadMarketingEvents();
+    showToast('✓ Etkinlik güncellendi!');
   };
 
   const addVisitReport = async (report) => {
-    if (window.electronAPI) {
-      await window.electronAPI.addVisitReport(report);
-      await loadVisitReports();
-      showToast('✓ Rapor kaydedildi!');
-    }
+    await supabase.from('visit_reports').insert({
+      user_id: user.id,
+      date: report.date || null,
+      data: report
+    });
+    await loadVisitReports();
+    showToast('✓ Rapor kaydedildi!');
   };
 
   const deleteVisitReport = async (id) => {
-    if (window.electronAPI) {
-      await window.electronAPI.deleteVisitReport(id);
-      await loadVisitReports();
-      showToast('🗑 Rapor silindi');
-    }
+    await supabase.from('visit_reports').delete().eq('id', id);
+    await loadVisitReports();
+    showToast('🗑 Rapor silindi');
   };
 
   const updateVisitReport = async (report) => {
-    if (window.electronAPI) {
-      await window.electronAPI.updateVisitReport(report.id, report);
-      await loadVisitReports();
-      showToast('✓ Rapor güncellendi!');
-    }
+    await supabase.from('visit_reports').update({
+      date: report.date || null,
+      data: report
+    }).eq('id', report.id);
+    await loadVisitReports();
+    showToast('✓ Rapor güncellendi!');
   };
 
   const addExpense = async (expense) => {
-    if (window.electronAPI) {
-      // EUR karşılığını hesapla (eğer manuel girilmediyse)
-      const rate = exchangeRates[expense.currency] || 1;
-      
-      // Kullanıcı manuel eurAmount girdiyse onu kullan, yoksa otomatik hesapla
-      const eurAmount = expense.eurAmount && expense.eurAmount !== '' 
-        ? parseFloat(expense.eurAmount) 
-        : parseFloat(expense.tutar) * rate;
-      
-      const expenseWithEur = {
-        ...expense,
-        eurAmount: eurAmount.toFixed(2),
-        exchangeRate: rate // Kullanılan kur da kaydedilsin
-      };
-      
-      const newExpense = await window.electronAPI.addExpense(expenseWithEur);
+    const rate = exchangeRates[expense.currency] || 1;
+    const eurAmount = expense.eurAmount && expense.eurAmount !== ''
+      ? parseFloat(expense.eurAmount)
+      : parseFloat(expense.tutar) * rate;
+    const row = {
+      user_id: user.id,
+      tarih: expense.tarih || null,
+      fisno: expense.fisno || null,
+      aciklama: expense.aciklama || null,
+      tutar: parseFloat(expense.tutar) || 0,
+      currency: expense.currency || 'EUR',
+      kategori: expense.kategori || null,
+      otel: expense.otel || null,
+      notiz: expense.not || null,
+      eur_amount: parseFloat(eurAmount.toFixed(2)),
+      exchange_rate: rate,
+      has_receipt: false,
+      receipt_path: null
+    };
+    const { data, error } = await supabase.from('expenses').insert(row).select().single();
+    if (!error) {
       await loadExpenses();
       showToast('✓ Fiş kaydedildi!');
-      return newExpense;
+      return data;
     }
+    return null;
   };
 
   const deleteExpense = async (id) => {
-    if (window.electronAPI) {
-      await window.electronAPI.deleteExpense(id);
-      await loadExpenses();
-      showToast('🗑 Fiş silindi');
-    }
+    await supabase.from('expenses').delete().eq('id', id);
+    await loadExpenses();
+    showToast('🗑 Fiş silindi');
   };
 
   const updateExpense = async (id, expense) => {
-    if (window.electronAPI) {
-      // Eğer tutar veya para birimi değiştiyse EUR karşılığını yeniden hesapla
-      let expenseToUpdate = { ...expense };
-      
-      if (expense.tutar && expense.currency) {
-        const rate = exchangeRates[expense.currency] || 1;
-        
-        // Kullanıcı manuel eurAmount girdiyse onu kullan, yoksa otomatik hesapla
-        const eurAmount = expense.eurAmount && expense.eurAmount !== '' 
-          ? parseFloat(expense.eurAmount) 
-          : parseFloat(expense.tutar) * rate;
-        
-        expenseToUpdate.eurAmount = eurAmount.toFixed(2);
-        expenseToUpdate.exchangeRate = rate;
-      }
-      
-      await window.electronAPI.updateExpense(id, expenseToUpdate);
-      await loadExpenses();
-      showToast('✓ Fiş güncellendi!');
+    let expenseToUpdate = { ...expense };
+    if (expense.tutar && expense.currency) {
+      const rate = exchangeRates[expense.currency] || 1;
+      const eurAmount = expense.eurAmount && expense.eurAmount !== ''
+        ? parseFloat(expense.eurAmount)
+        : parseFloat(expense.tutar) * rate;
+      expenseToUpdate.eurAmount = eurAmount.toFixed(2);
+      expenseToUpdate.exchangeRate = rate;
     }
+    await supabase.from('expenses').update({
+      tarih: expenseToUpdate.tarih || null,
+      fisno: expenseToUpdate.fisno || null,
+      aciklama: expenseToUpdate.aciklama || null,
+      tutar: parseFloat(expenseToUpdate.tutar) || 0,
+      currency: expenseToUpdate.currency || 'EUR',
+      kategori: expenseToUpdate.kategori || null,
+      otel: expenseToUpdate.otel || null,
+      notiz: expenseToUpdate.not || null,
+      eur_amount: expenseToUpdate.eurAmount ? parseFloat(expenseToUpdate.eurAmount) : null,
+      exchange_rate: expenseToUpdate.exchangeRate || null
+    }).eq('id', id);
+    await loadExpenses();
+    showToast('✓ Fiş güncellendi!');
   };
 
   const handleEdit = (expense) => {
@@ -719,31 +728,20 @@ function App() {
 
   const handleModalSave = async (expenseData) => {
     if (editingExpense) {
-      // Düzenleme modu
       await updateExpense(editingExpense.id, expenseData);
     } else {
-      // Yeni ekleme
-      // Önce görseli ayır
       const { imageData, ...expenseWithoutImage } = expenseData;
-      
-      // Expense'i kaydet
       const newExpense = await addExpense(expenseWithoutImage);
-      
-      // Eğer görsel varsa, kaydet (tarihle birlikte)
-      if (imageData && newExpense && window.electronAPI) {
-        const saveResult = await window.electronAPI.saveReceipt(
-          imageData, 
-          newExpense.id, 
-          expenseWithoutImage.tarih // Fiş tarihi ile klasörle
-        );
-        
-        if (saveResult.success) {
-          // Receipt path'i güncelle - newExpense'deki tüm verileri koru (eurAmount dahil)
-          await window.electronAPI.updateExpense(newExpense.id, {
-            ...newExpense,
-            receiptPath: saveResult.path,
-            hasReceipt: true
-          });
+      // Eğer görsel varsa Supabase Storage'a yükle
+      if (imageData && newExpense) {
+        const base64Data = imageData.replace(/^data:.+;base64,/, '');
+        const byteArray = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+        const filePath = `${user.id}/${newExpense.id}.jpg`;
+        const { error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(filePath, byteArray, { contentType: 'image/jpeg', upsert: true });
+        if (!uploadError) {
+          await supabase.from('expenses').update({ has_receipt: true, receipt_path: filePath }).eq('id', newExpense.id);
           await loadExpenses();
         }
       }
@@ -751,15 +749,21 @@ function App() {
     handleModalClose();
   };
 
-  const exportCSV = async () => {
-    if (window.electronAPI) {
-      const result = await window.electronAPI.exportCSV();
-      if (result.success) {
-        showToast('✓ CSV başarıyla kaydedildi!');
-      } else {
-        showToast('⚠️ ' + result.message);
-      }
-    }
+  const exportCSV = () => {
+    if (!expenses.length) { showToast('⚠️ Dışa aktarılacak veri yok'); return; }
+    const header = ['Tarih', 'Fiş No', 'Açıklama', 'Tutar', 'Döviz', 'EUR Karşılığı', 'Kategori', 'Otel', 'Not'];
+    const rows = expenses.map(e => [
+      e.tarih || '', e.fisno || '', e.aciklama || '',
+      e.tutar || '', e.currency || 'EUR', e.eur_amount || '',
+      e.kategori || '', e.otel || '', e.notiz || ''
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '\"')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `belegliste_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('✓ CSV indirildi!');
   };
 
   const showToast = (message) => {

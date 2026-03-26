@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { supabase } from '../lib/supabase';
 
 const CAT_CLASS = {
   seyahat: 'cat-travel',
@@ -196,8 +197,9 @@ function ExpenseList({ expenses, onDelete, onEdit, onScanExpense, onAddExpense, 
     }
 
     // Profil bilgilerini yükle
-    const settings = await window.electronAPI.getSettings();
-    const profile = settings.profile || {};
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: settings } = await supabase.from('user_settings').select('*').eq('user_id', user?.id).single();
+    const profile = settings?.profile || {};
     
     const fullName = profile.firstName && profile.lastName 
       ? `${profile.firstName} ${profile.lastName}`.toUpperCase()
@@ -478,8 +480,9 @@ function ExpenseList({ expenses, onDelete, onEdit, onScanExpense, onAddExpense, 
       }
 
       // Profil bilgilerini yükle
-      const settings = await window.electronAPI.getSettings();
-      const profile = settings.profile || {};
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: settings } = await supabase.from('user_settings').select('*').eq('user_id', user?.id).single();
+      const profile = settings?.profile || {};
       
       const fullName = profile.firstName && profile.lastName 
         ? `${profile.firstName} ${profile.lastName}`.toUpperCase()
@@ -664,9 +667,12 @@ function ExpenseList({ expenses, onDelete, onEdit, onScanExpense, onAddExpense, 
 
           for (const expense of receiptsWithImages) {
             try {
-              // Görseli al
-              const result = await window.electronAPI.getReceipt(expense.receiptPath);
-              if (result.success) {
+              // Görseli al (Supabase Storage)
+              const { data: imgData } = await supabase.storage.from('receipts').download(expense.receipt_path || expense.receiptPath);
+              if (imgData) {
+                const arrayBuffer = await imgData.arrayBuffer();
+                const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                const dataUrl = `data:image/jpeg;base64,${base64}`;
                 // Sayfada yer yoksa yeni sayfa
                 if (yPos + imgHeight > 280) {
                   doc.addPage();
@@ -681,7 +687,7 @@ function ExpenseList({ expenses, onDelete, onEdit, onScanExpense, onAddExpense, 
                 }
 
                 // Görseli ekle
-                doc.addImage(result.dataUrl, 'PNG', xPos, yPos, imgWidth, imgHeight);
+                doc.addImage(dataUrl, 'PNG', xPos, yPos, imgWidth, imgHeight);
                 
                 // Altına expense bilgisi
                 doc.setFontSize(8);

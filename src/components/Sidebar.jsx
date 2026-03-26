@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 function Sidebar({ currentView, setCurrentView, expenses, onProfileClick }) {
   const [profile, setProfile] = useState({ firstName: '', lastName: '' });
@@ -8,22 +9,18 @@ function Sidebar({ currentView, setCurrentView, expenses, onProfileClick }) {
   }, []);
 
   const loadProfile = async () => {
-    if (window.electronAPI) {
-      const settings = await window.electronAPI.getSettings();
-      if (settings.profile) {
-        setProfile(settings.profile);
-      }
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single();
+    if (data?.profile) setProfile(data.profile);
   };
 
   const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.getSettings().then(s => {
-        if (s.userEmail) setUserEmail(s.userEmail);
-      });
-    }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email) setUserEmail(user.email);
+    });
   }, []);
 
   const displayName = (profile.firstName && profile.lastName)

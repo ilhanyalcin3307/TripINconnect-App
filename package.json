@@ -1,41 +1,15 @@
 {
   "name": "tripinconnect",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Reisebüro Portal - Rezervasyon ve Provizyon Yönetimi",
-  "main": "electron/main.js",
   "scripts": {
-    "start": "electron .",
-    "dev:react": "vite",
-    "dev:electron": "wait-on http://localhost:5173 && electron .",
-    "dev": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",
+    "dev": "vite",
     "build": "vite build",
-    "build:electron": "electron-builder"
-  },
-  "build": {
-    "appId": "com.tripinconnect.app",
-    "productName": "TripInConnect",
-    "files": [
-      "electron/**/*",
-      "dist/**/*",
-      "node_modules/**/*"
-    ],
-    "mac": {
-      "category": "public.app-category.finance",
-      "target": "dmg"
-    },
-    "win": {
-      "target": "nsis"
-    },
-    "nsis": {
-      "deleteAppDataOnUninstall": false
-    }
+    "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
-    "archiver": "^7.0.1",
-    "electron-store": "^8.1.0",
     "exceljs": "^4.4.0",
-    "extract-zip": "^2.0.1",
     "file-saver": "^2.0.5",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
@@ -44,13 +18,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
-    "concurrently": "^8.2.2",
-    "electron": "^28.2.0",
-    "electron-builder": "^24.9.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tesseract.js": "^5.0.4",
-    "vite": "^5.1.0",
-    "wait-on": "^7.2.0"
+    "vite": "^5.1.0"
   }
 }

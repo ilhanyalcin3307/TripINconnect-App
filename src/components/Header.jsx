@@ -7,20 +7,18 @@ function Header({ title, onExport, onAddExpense, onSettings, onImport, onLogout,
 
   // Döviz kurlarını çek
   const fetchRates = async () => {
-    if (window.electronAPI && window.electronAPI.getExchangeRates) {
-      try {
-        const result = await window.electronAPI.getExchangeRates();
-        if (result.success && result.data && result.data.rates) {
-          setRates({
-            TRY: result.data.rates.TRY,
-            USD: result.data.rates.USD
-          });
+    try {
+      const res = await fetch('https://api.frankfurter.app/latest?from=EUR&to=TRY,USD');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.rates) {
+          setRates({ TRY: data.rates.TRY, USD: data.rates.USD });
         }
-        setLoading(false);
-      } catch (error) {
-        console.error('Döviz kuru hatası:', error);
-        setLoading(false);
       }
+      setLoading(false);
+    } catch (error) {
+      console.error('Döviz kuru hatası:', error);
+      setLoading(false);
     }
   };
 
